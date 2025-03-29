@@ -15,6 +15,8 @@
 - Test script created to validate functionality
 - Example scripts for various usage scenarios added
 - CI/CD integration guide created
+- Git branching strategy implemented (main and development branches)
+- GitHub Actions workflow enhanced to support both branches
 
 ## What's Left to Build
 
@@ -28,6 +30,7 @@
 - [x] Command-line interface
 - [x] Dependency checking
 - [x] Basic example scripts
+- [x] Git branching and CI workflow setup
 - [ ] Comprehensive testing
 - [ ] Documentation completion
 
@@ -48,7 +51,7 @@
 
 ## Current Status
 
-Implementation phase with examples and testing. Core script functionality has been implemented and example scripts have been created for different usage scenarios. The tool needs comprehensive testing with real Flutter projects to validate its functionality across different environments.
+Implementation phase with examples and testing. Core script functionality has been implemented and example scripts have been created for different usage scenarios. Git branching strategy has been set up with main (stable) and development (ongoing work) branches. GitHub Actions workflow has been enhanced to support both branches. The tool needs comprehensive testing with real Flutter projects to validate its functionality across different environments.
 
 ## Known Issues
 
