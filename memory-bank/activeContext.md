@@ -23,6 +23,7 @@ The project is in its implementation phase. We have set up the foundation of the
 - Added detailed CI/CD integration guide
 - Established Git branching strategy with main (stable) and development branches
 - Enhanced GitHub Actions workflow to support both branches with appropriate CI/CD steps
+- Added JSON configuration file support for non-interactive operation
 
 ## Next Steps
 
@@ -47,3 +48,4 @@ The project is in its implementation phase. We have set up the foundation of the
   - `development` branch for ongoing development and integration
   - Feature branches should be created from and merged back to `development`
   - Only merge to `main` when features are fully tested and ready for release
+- **Configuration**: Supporting both interactive input and JSON configuration files to accommodate various workflows

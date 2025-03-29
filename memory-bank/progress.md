@@ -12,6 +12,7 @@
   - Flutter build command execution
   - Signature verification
   - Command-line interface
+  - JSON configuration file support
 - Test script created to validate functionality
 - Example scripts for various usage scenarios added
 - CI/CD integration guide created
@@ -31,6 +32,7 @@
 - [x] Dependency checking
 - [x] Basic example scripts
 - [x] Git branching and CI workflow setup
+- [x] JSON configuration file support
 - [ ] Comprehensive testing
 - [ ] Documentation completion
 
