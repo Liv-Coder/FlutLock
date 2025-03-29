@@ -54,6 +54,20 @@ def run_command(cmd, **kwargs):
     """Run a shell command and return the output."""
     try:
         logger.debug(f"Running command: {' '.join(cmd)}")
+        # For security, mask password arguments in the log
+        log_cmd = []
+        skip_next = False
+        for i, arg in enumerate(cmd):
+            if skip_next:
+                log_cmd.append("***")
+                skip_next = False
+            elif arg in ["-storepass", "-keypass"]:
+                log_cmd.append(arg)
+                skip_next = True
+            else:
+                log_cmd.append(arg)
+        logger.debug(f"Command (masked): {' '.join(log_cmd)}")
+
         result = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
@@ -67,7 +81,8 @@ def run_command(cmd, **kwargs):
             logger.error(
                 f"Command failed with code {result.returncode}: {result.stderr.strip()}"
             )
-            return False, result.stderr.strip()
+            logger.debug(f"Command output: {result.stdout.strip()}")
+            return False, result.stderr.strip() or result.stdout.strip()
 
         return True, result.stdout.strip()
     except Exception as e:
@@ -83,6 +98,14 @@ def generate_keystore(keystore_path, alias=None, validity=25 * 365, config=None)
         if not overwrite:
             logger.info("Using existing keystore.")
             return True
+        else:
+            # Delete the existing keystore to avoid alias conflict
+            try:
+                os.remove(keystore_path)
+                logger.info(f"Deleted existing keystore at {keystore_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete existing keystore: {e}")
+                return False
 
     # Get keystore details from config, environment vars, or user input
     keystore_config = config.get("keystore", {}) if config else {}
@@ -467,6 +490,12 @@ def main():
     if args.config:
         config = load_config_file(args.config)
 
+        # Debug: print config
+        if config:
+            logger.debug(
+                f"Loaded configuration: {json.dumps(config, indent=2, default=str)}"
+            )
+
         # Validate configuration
         if config:
             issues = validate_config(config)
@@ -517,6 +546,11 @@ def main():
             flutter_project_path, "android", "app", "upload.keystore"
         )
         logger.info(f"Generating new keystore at: {keystore_path}")
+
+        # Added debug info
+        logger.debug(f"Using alias: {args.alias}")
+        logger.debug(f"Config passed to generate_keystore: {bool(config)}")
+
         if not generate_keystore(keystore_path, args.alias, config=config):
             return 1
 
