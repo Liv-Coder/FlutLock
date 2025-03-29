@@ -41,11 +41,12 @@ python sign_flutter_app.py --path /path/to/flutter/project
 ### Options
 
 ```
---path PATH             Path to Flutter project root
---keystore PATH         Path to existing keystore (optional)
---alias ALIAS           Keystore alias (optional)
+--path PATH             Path to Flutter project root directory
+--keystore PATH         Path to existing keystore file (optional)
+--alias ALIAS           Alias for the keystore (optional)
 --build-type TYPE       Build type: apk or appbundle (default: apk)
 --verify                Verify the signature after building
+--config PATH           Path to JSON configuration file
 ```
 
 ### Environment Variables
@@ -55,6 +56,42 @@ You can use environment variables instead of entering passwords interactively:
 - `KEYSTORE_PASSWORD`: Password for the keystore
 - `KEY_PASSWORD`: Password for the key
 - `STORE_ALIAS`: Alias for the key in the keystore
+
+### JSON Configuration
+
+You can use a JSON configuration file to specify all options and avoid interactive prompts:
+
+```bash
+python sign_flutter_app.py --path /path/to/flutter/project --config config.json
+```
+
+Sample JSON configuration file:
+
+```json
+{
+  "keystore": {
+    "use_existing": false,
+    "path": "path/to/your/keystore.jks",
+    "alias": "upload",
+    "store_password": "your_keystore_password",
+    "key_password": "your_key_password"
+  },
+  "signer": {
+    "name": "Your Name",
+    "org_unit": "Development",
+    "organization": "Your Company",
+    "locality": "Your City",
+    "state": "Your State",
+    "country": "US"
+  },
+  "build": {
+    "type": "apk",
+    "verify": true
+  }
+}
+```
+
+If any values are missing in the JSON file, you will be prompted to enter them interactively.
 
 ## Examples
 

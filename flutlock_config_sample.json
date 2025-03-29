@@ -1,0 +1,21 @@
+{
+  "keystore": {
+    "use_existing": false,
+    "path": "path/to/your/keystore.jks",
+    "alias": "upload",
+    "store_password": "your_keystore_password",
+    "key_password": "your_key_password"
+  },
+  "signer": {
+    "name": "Your Name",
+    "org_unit": "Development",
+    "organization": "Your Company",
+    "locality": "Your City",
+    "state": "Your State",
+    "country": "US"
+  },
+  "build": {
+    "type": "apk",
+    "verify": true
+  }
+}

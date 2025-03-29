@@ -8,6 +8,7 @@ Handles keystore generation, key.properties file creation, and build commands.
 
 import argparse
 import getpass
+import json
 import logging
 import os
 import re
@@ -74,7 +75,7 @@ def run_command(cmd, **kwargs):
         return False, str(e)
 
 
-def generate_keystore(keystore_path, alias=None, validity=25 * 365):
+def generate_keystore(keystore_path, alias=None, validity=25 * 365, config=None):
     """Generate a new keystore file."""
     if os.path.exists(keystore_path):
         logger.warning(f"Keystore already exists at {keystore_path}")
@@ -83,13 +84,20 @@ def generate_keystore(keystore_path, alias=None, validity=25 * 365):
             logger.info("Using existing keystore.")
             return True
 
-    # Get keystore details
-    store_password = os.environ.get("KEYSTORE_PASSWORD")
-    key_password = os.environ.get("KEY_PASSWORD")
+    # Get keystore details from config, environment vars, or user input
+    keystore_config = config.get("keystore", {}) if config else {}
 
+    # Get store password
+    store_password = keystore_config.get("store_password")
+    if not store_password:
+        store_password = os.environ.get("KEYSTORE_PASSWORD")
     if not store_password:
         store_password = getpass.getpass("Enter keystore password: ")
 
+    # Get key password
+    key_password = keystore_config.get("key_password")
+    if not key_password:
+        key_password = os.environ.get("KEY_PASSWORD")
     if not key_password:
         key_password = getpass.getpass(
             "Enter key password (press Enter to use same as keystore): "
@@ -97,16 +105,41 @@ def generate_keystore(keystore_path, alias=None, validity=25 * 365):
         if not key_password:
             key_password = store_password
 
+    # Get alias
+    if not alias:
+        alias = keystore_config.get("alias")
     if not alias:
         alias = os.environ.get("STORE_ALIAS") or "upload"
 
+    # Get signer information from config or user input
+    signer_config = config.get("signer", {}) if config else {}
+
     # Get distinguished name components
-    name = input("Enter your name (CN): ")
-    org_unit = input("Enter organizational unit (OU) [Development]: ") or "Development"
-    org = input("Enter organization (O) [Your Company]: ") or "Your Company"
-    locality = input("Enter locality/city (L): ")
-    state = input("Enter state/province (ST): ")
-    country = input("Enter country code (C) [US]: ") or "US"
+    name = signer_config.get("name")
+    if not name:
+        name = input("Enter your name (CN): ")
+
+    org_unit = signer_config.get("org_unit")
+    if not org_unit:
+        org_unit = (
+            input("Enter organizational unit (OU) [Development]: ") or "Development"
+        )
+
+    org = signer_config.get("organization")
+    if not org:
+        org = input("Enter organization (O) [Your Company]: ") or "Your Company"
+
+    locality = signer_config.get("locality")
+    if not locality:
+        locality = input("Enter locality/city (L): ")
+
+    state = signer_config.get("state")
+    if not state:
+        state = input("Enter state/province (ST): ")
+
+    country = signer_config.get("country")
+    if not country:
+        country = input("Enter country code (C) [US]: ") or "US"
 
     # Build DN string
     dname = f"CN={name}, OU={org_unit}, O={org}, L={locality}, ST={state}, C={country}"
@@ -153,7 +186,7 @@ def generate_keystore(keystore_path, alias=None, validity=25 * 365):
         return False
 
 
-def create_key_properties(flutter_project_path, keystore_path, alias=None):
+def create_key_properties(flutter_project_path, keystore_path, alias=None, config=None):
     """Create or update the key.properties file in the Flutter project."""
     android_dir = os.path.join(flutter_project_path, "android")
 
@@ -163,13 +196,20 @@ def create_key_properties(flutter_project_path, keystore_path, alias=None):
 
     key_properties_path = os.path.join(android_dir, "key.properties")
 
-    # Get passwords
-    store_password = os.environ.get("KEYSTORE_PASSWORD")
-    key_password = os.environ.get("KEY_PASSWORD")
+    # Get keystore details from config, environment vars, or user input
+    keystore_config = config.get("keystore", {}) if config else {}
 
+    # Get store password
+    store_password = keystore_config.get("store_password")
+    if not store_password:
+        store_password = os.environ.get("KEYSTORE_PASSWORD")
     if not store_password:
         store_password = getpass.getpass("Enter keystore password: ")
 
+    # Get key password
+    key_password = keystore_config.get("key_password")
+    if not key_password:
+        key_password = os.environ.get("KEY_PASSWORD")
     if not key_password:
         key_password = getpass.getpass(
             "Enter key password (press Enter to use same as keystore): "
@@ -177,6 +217,9 @@ def create_key_properties(flutter_project_path, keystore_path, alias=None):
         if not key_password:
             key_password = store_password
 
+    # Get alias
+    if not alias:
+        alias = keystore_config.get("alias")
     if not alias:
         alias = os.environ.get("STORE_ALIAS") or "upload"
 
@@ -198,49 +241,54 @@ keyAlias={alias}
 storeFile={keystore_rel_path.replace(os.sep, '/')}
 """
 
+    # Write the key.properties file
     try:
         with open(key_properties_path, "w") as f:
             f.write(properties_content)
-
         # Set appropriate permissions (if on Unix-like system)
         if os.name == "posix":
             os.chmod(key_properties_path, 0o600)  # Owner read/write only
-
         logger.info(f"Created key.properties at {key_properties_path}")
         return True
     except Exception as e:
-        logger.error(f"Failed to create key.properties: {e}")
+        logger.error(f"Failed to write key.properties: {e}")
         return False
 
 
 def build_flutter_app(flutter_project_path, build_type="apk"):
     """Build the Flutter app with the specified build type."""
-    if build_type not in ["apk", "appbundle"]:
-        logger.error(f"Invalid build type: {build_type}")
-        return False
-
     cmd = ["flutter", "build", build_type, "--release"]
 
-    logger.info(f"Building Flutter {build_type}...")
+    logger.info(f"Building Flutter {build_type} in release mode")
     success, output = run_command(cmd, cwd=flutter_project_path)
 
-    if success:
-        logger.info(f"Flutter {build_type} built successfully")
+    if not success:
+        logger.error(f"Flutter build failed: {output}")
+        return None
 
-        # Extract the output file path from Flutter's output
-        output_pattern = (
-            r"Built (.+?)(?:$|\s+\(|\()" if build_type == "apk" else r"Built (.+\.aab)"
+    # Determine the output file path based on build type
+    if build_type == "apk":
+        # For APK, the output is usually in build/app/outputs/flutter-apk/
+        output_dir = os.path.join(
+            flutter_project_path, "build", "app", "outputs", "flutter-apk"
         )
-        match = re.search(output_pattern, output)
+        output_pattern = os.path.join(output_dir, "app-release.apk")
+    else:  # appbundle
+        # For App Bundle, the output is in build/app/outputs/bundle/release/
+        output_dir = os.path.join(
+            flutter_project_path, "build", "app", "outputs", "bundle", "release"
+        )
+        output_pattern = os.path.join(output_dir, "app-release.aab")
 
-        if match:
-            return True, match.group(1)
-        else:
-            logger.warning(f"Could not determine output file path from Flutter output")
-            return True, None
+    # Check if the output file exists
+    if os.path.exists(output_pattern):
+        logger.info(f"Build completed: {output_pattern}")
+        return output_pattern
     else:
-        logger.error(f"Failed to build Flutter {build_type}: {output}")
-        return False, None
+        logger.error(
+            f"Build output file not found at expected location: {output_pattern}"
+        )
+        return None
 
 
 def verify_signature(output_file):
@@ -284,27 +332,29 @@ def verify_signature(output_file):
 def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="FlutLock: Automate Android app signing for Flutter applications",
+        description="Automate Flutter app signing process.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
     parser.add_argument(
-        "--path", required=True, help="Path to the Flutter project root"
+        "--path",
+        type=str,
+        required=True,
+        help="Path to Flutter project root directory",
     )
 
     parser.add_argument(
-        "--keystore", help="Path to existing keystore (will generate if not provided)"
+        "--keystore", type=str, help="Path to existing keystore file (optional)"
     )
 
-    parser.add_argument(
-        "--alias", help='Keystore alias (default: from env var or "upload")'
-    )
+    parser.add_argument("--alias", type=str, help="Alias for the keystore (optional)")
 
     parser.add_argument(
         "--build-type",
+        type=str,
         choices=["apk", "appbundle"],
         default="apk",
-        help="Type of build to generate",
+        help="Flutter build output type (apk or appbundle)",
     )
 
     parser.add_argument(
@@ -313,59 +363,188 @@ def parse_args():
 
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
+    parser.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="Skip building the app (useful for testing key generation)",
+    )
+
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to JSON configuration file with signing information",
+    )
+
     return parser.parse_args()
 
 
+def load_config_file(config_path):
+    """
+    Load configuration from a JSON file.
+
+    Returns a dictionary with configuration values or empty dict if file doesn't exist.
+    """
+    if not config_path or not os.path.exists(config_path):
+        logger.debug(f"Config file not found at: {config_path}")
+        return {}
+
+    try:
+        with open(config_path, "r") as f:
+            config = json.load(f)
+            logger.info(f"Configuration loaded from: {config_path}")
+            return config
+    except json.JSONDecodeError as e:
+        logger.error(f"Error parsing config file: {e}")
+        return {}
+    except Exception as e:
+        logger.error(f"Error reading config file: {e}")
+        return {}
+
+
+def validate_config(config):
+    """Validate the configuration and return issues found."""
+    issues = []
+
+    # Check for required sections
+    if not config:
+        issues.append("Configuration is empty")
+        return issues
+
+    # Validate keystore section
+    keystore = config.get("keystore", {})
+    if not keystore:
+        issues.append("Missing 'keystore' section")
+    else:
+        # Check for path if using existing keystore
+        if keystore.get("use_existing", False) and not keystore.get("path"):
+            issues.append("'keystore.path' is required when 'use_existing' is true")
+
+        # Check for alias
+        if not keystore.get("alias"):
+            issues.append("Missing 'keystore.alias'")
+
+        # Check for passwords
+        if not keystore.get("store_password"):
+            issues.append("Missing 'keystore.store_password'")
+
+        if not keystore.get("key_password"):
+            issues.append("Missing 'keystore.key_password'")
+
+    # Validate signer section if present
+    signer = config.get("signer", {})
+    if signer:
+        name = signer.get("name")
+        if not name:
+            issues.append("Missing 'signer.name'")
+
+        # Check other signer fields
+        if not signer.get("org_unit"):
+            issues.append("Missing 'signer.org_unit'")
+
+        if not signer.get("organization"):
+            issues.append("Missing 'signer.organization'")
+
+        if not signer.get("locality"):
+            issues.append("Missing 'signer.locality'")
+
+        if not signer.get("state"):
+            issues.append("Missing 'signer.state'")
+
+        if not signer.get("country"):
+            issues.append("Missing 'signer.country'")
+
+    return issues
+
+
 def main():
-    """Main entry point of the script."""
+    """Main function."""
     args = parse_args()
 
-    # Set verbose logging if requested
+    # Set log level based on verbose flag
     if args.verbose:
         logger.setLevel(logging.DEBUG)
+        logger.debug("Verbose logging enabled")
 
-    # Validate Flutter project path
-    if not os.path.isdir(args.path):
-        logger.error(f"Flutter project directory not found: {args.path}")
-        return 1
+    # Load configuration if specified
+    config = None
+    if args.config:
+        config = load_config_file(args.config)
+
+        # Validate configuration
+        if config:
+            issues = validate_config(config)
+            if issues:
+                logger.warning("Configuration validation issues found:")
+                for issue in issues:
+                    logger.warning(f"- {issue}")
+                logger.info("Will prompt for missing or invalid values")
 
     # Check dependencies
     if not check_dependencies():
+        if args.skip_build:
+            logger.warning(
+                "Dependency check failed but continuing due to --skip-build flag"
+            )
+        else:
+            return 1
+
+    # Prepare paths
+    flutter_project_path = os.path.abspath(args.path)
+
+    if not os.path.isdir(flutter_project_path):
+        logger.error(f"Flutter project directory not found: {flutter_project_path}")
         return 1
 
-    # Determine keystore path
-    if args.keystore:
-        keystore_path = args.keystore
-    else:
-        # Default to android/app/upload.keystore in the Flutter project
-        keystore_path = os.path.join(args.path, "android", "app", "upload.keystore")
+    # Use keystore from config if specified and --keystore arg not provided
+    keystore_config = config.get("keystore", {}) if config else {}
+    use_existing_keystore = keystore_config.get("use_existing", False)
 
     # Handle keystore
-    if not args.keystore or not os.path.exists(args.keystore):
-        logger.info(f"Keystore not found, generating new one at: {keystore_path}")
-        if not generate_keystore(keystore_path, args.alias):
+    if args.keystore:
+        # Use existing keystore from argument
+        keystore_path = os.path.abspath(args.keystore)
+        if not os.path.isfile(keystore_path):
+            logger.error(f"Keystore file not found: {keystore_path}")
             return 1
-    else:
         logger.info(f"Using existing keystore: {keystore_path}")
+    elif use_existing_keystore and keystore_config.get("path"):
+        # Use existing keystore from config
+        keystore_path = os.path.abspath(keystore_config.get("path"))
+        if not os.path.isfile(keystore_path):
+            logger.error(f"Keystore file from config not found: {keystore_path}")
+            return 1
+        logger.info(f"Using existing keystore from config: {keystore_path}")
+    else:
+        # Generate new keystore
+        keystore_path = os.path.join(
+            flutter_project_path, "android", "app", "upload.keystore"
+        )
+        logger.info(f"Generating new keystore at: {keystore_path}")
+        if not generate_keystore(keystore_path, args.alias, config=config):
+            return 1
 
     # Create key.properties
-    if not create_key_properties(args.path, keystore_path, args.alias):
+    if not create_key_properties(
+        flutter_project_path, keystore_path, args.alias, config=config
+    ):
         return 1
 
+    # Skip build if requested
+    if args.skip_build:
+        logger.info("Skipping build step (--skip-build flag used)")
+        return 0
+
     # Build the app
-    success, output_file = build_flutter_app(args.path, args.build_type)
-    if not success:
+    output_file = build_flutter_app(flutter_project_path, args.build_type)
+    if not output_file:
         return 1
 
     # Verify signature if requested
-    if args.verify and output_file:
+    if args.verify:
         if not verify_signature(output_file):
-            logger.warning("Signature verification failed, but build was successful")
+            return 1
 
-    logger.info("Flutter app signing and build completed successfully")
-    if output_file:
-        logger.info(f"Output file: {output_file}")
-
+    logger.info(f"Flutter app successfully built and signed: {output_file}")
     return 0
 
 
