@@ -164,16 +164,13 @@ def generate_keystore(keystore_path, alias=None, validity=25 * 365, config=None)
         str(validity),
         "-dname",
         dname,
+        "-storepass",
+        store_password,
+        "-keypass",
+        key_password,
     ]
 
-    # Pass passwords through environment to avoid shell history
-    env = os.environ.copy()
-    env["STOREPASS"] = store_password
-    env["KEYPASS"] = key_password
-
-    success, output = run_command(
-        cmd, env=env, input=f"{store_password}\n{key_password}\n"
-    )
+    success, output = run_command(cmd)
 
     if success:
         logger.info(f"Keystore generated successfully at {keystore_path}")
