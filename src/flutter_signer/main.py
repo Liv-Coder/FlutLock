@@ -17,8 +17,9 @@ from .core.properties import create_key_properties
 from .core.build import build_flutter_app, BuildError
 from .core.verify import verify_signature, SignatureError
 from .core.dependencies import check_dependencies, DependencyError
-from .utils.config import load_config_file, ConfigError, validate_config
-from .utils.exceptions import FlutLockError
+from .core.gradle import update_app_build_gradle
+from .utils.config_processor import load_config_file, process_config, validate_config
+from .utils.exceptions import FlutLockError, ConfigError
 
 # Configure logging
 logging.basicConfig(
@@ -123,6 +124,20 @@ def parse_args():
         help="Suppress all non-error output",
     )
 
+    # Add gradle configuration option
+    parser.add_argument(
+        "--update-gradle",
+        action="store_true",
+        default=True,
+        help="Update app-level build.gradle with signing configuration",
+    )
+    parser.add_argument(
+        "--no-update-gradle",
+        dest="update_gradle",
+        action="store_false",
+        help="Skip updating build.gradle file",
+    )
+
     return parser.parse_args()
 
 
@@ -138,14 +153,30 @@ def main():
         elif args.quiet:
             logger.setLevel(logging.ERROR)
 
-        # Load configuration file if provided
+        # Load and process configuration file if provided
         config = None
         if args.config:
             try:
-                config = load_config_file(args.config)
-                logger.debug("Configuration loaded from %s", args.config)
+                # Load raw config data
+                raw_config = load_config_file(args.config)
+
+                # Process the config (variable substitution)
+                config = process_config(raw_config, project_path=args.path, env_vars=os.environ)
+                logger.debug("Configuration processed with variable substitution")
+
+                # Validate the configuration
+                validate_config(config)
+                logger.debug("Configuration validation successful")
             except ConfigError as e:
                 logger.error("Error in configuration file: %s", e)
+                # Add detailed traceback for debugging
+                if args.verbose:
+                    logger.debug("Traceback: %s", traceback.format_exc())
+                return 1
+            except Exception as e:
+                logger.error("Unexpected error processing configuration: %s", e)
+                if args.verbose:
+                    logger.debug("Traceback: %s", traceback.format_exc())
                 return 1
 
         # Check for non-interactive mode
@@ -172,12 +203,15 @@ def main():
                     )
                     return 1
 
-        # Check dependencies
-        try:
-            check_dependencies()
-        except DependencyError as e:
-            logger.error("Dependency check failed: %s", e)
-            return 1
+        # Check dependencies only if we're building
+        if not args.skip_build:
+            try:
+                check_dependencies()
+            except DependencyError as e:
+                logger.error("Dependency check failed: %s", e)
+                return 1
+        else:
+            logger.debug("Skipping dependency check because --skip-build is set")
 
         # Set up paths
         flutter_project_path = os.path.abspath(args.path)
@@ -229,6 +263,15 @@ def main():
         except FlutLockError as e:
             logger.error("Error creating key.properties: %s", e)
             return 1
+
+        # Update build.gradle if requested
+        if args.update_gradle:
+            try:
+                update_app_build_gradle(flutter_project_path, config=config)
+            except FlutLockError as e:
+                logger.error("Error updating build.gradle: %s", e)
+                logger.warning("Continuing with build process despite build.gradle update failure")
+                # We don't return an error here to allow the process to continue
 
         # Build Flutter app
         if not args.skip_build:

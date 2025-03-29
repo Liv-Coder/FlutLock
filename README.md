@@ -6,6 +6,7 @@ A command-line tool to automate the Android app signing process for Flutter appl
 
 - Generates keystore files or uses existing ones
 - Creates and manages `key.properties` file for Flutter projects
+- Updates app-level build.gradle.kts/build.gradle with signing configurations
 - Executes Flutter build commands for APK and App Bundle
 - Verifies signatures using Android SDK tools
 - Works across Windows, macOS, and Linux environments
@@ -68,6 +69,8 @@ Basic Options:
   --verify                Verify app signature after build (default: True)
   --no-verify             Skip signature verification
   --skip-build            Skip the build step (useful for testing keystores)
+  --update-gradle         Update app-level build.gradle with signing configuration (default: True)
+  --no-update-gradle      Skip updating build.gradle file
   --config PATH           Path to JSON configuration file
   --version               Show version information and exit
 
@@ -184,6 +187,20 @@ jobs:
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+```
+
+#### Updating build.gradle with signing configuration
+
+By default, FlutLock will update your app-level build.gradle.kts (or build.gradle) file to include the signing configuration. This saves you from manually editing the Gradle file:
+
+```bash
+python -m flutter_signer --path /path/to/flutter/project
+```
+
+You can skip this step if you prefer to manage your Gradle files manually:
+
+```bash
+python -m flutter_signer --path /path/to/flutter/project --no-update-gradle
 ```
 
 ## Project Structure

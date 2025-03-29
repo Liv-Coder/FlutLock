@@ -1,0 +1,34 @@
+{
+  "keystore": {
+    "use_existing": false,
+    "path": "${PROJECT_DIR}/android/app/upload.keystore",
+    "alias": "upload",
+    "store_password": "${KEYSTORE_PASSWORD:-K@ranstha2525}",
+    "key_password": "${KEY_PASSWORD:-K@ranstha2525}"
+  },
+  "signer": {
+    "name": "Nawal Shrestha",
+    "org_unit": "Development",
+    "organization": "DevGen",
+    "locality": "Sarlahi",
+    "state": "Janakpur",
+    "country": "NP"
+  },
+  "build": {
+    "type": "apk",
+    "verify": true,
+    "skip_build": false,
+    "update_gradle": true
+  },
+  "flutter": {
+    "package": "com.devgen.${APP_NAME}",
+    "flavors": {
+      "dev": {
+        "applicationId": "com.devgen.${APP_NAME}.dev"
+      },
+      "prod": {
+        "applicationId": "com.devgen.${APP_NAME}"
+      }
+    }
+  }
+}

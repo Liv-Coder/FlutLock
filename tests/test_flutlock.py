@@ -10,6 +10,8 @@ import unittest
 from unittest import mock
 import json
 from pathlib import Path
+import re
+import io
 
 # Add the src directory to the path so we can import the package
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
@@ -19,6 +21,7 @@ from flutter_signer.core.properties import create_key_properties
 from flutter_signer.utils.config import load_config_file, ConfigError
 from flutter_signer.utils.exceptions import FlutLockError
 from flutter_signer.main import parse_args
+from flutter_signer.core.gradle import update_app_build_gradle
 
 
 class TestDependencyCheck(unittest.TestCase):
@@ -235,6 +238,170 @@ class TestArgumentParsing(unittest.TestCase):
             self.assertFalse(args.verify)
             self.assertTrue(args.skip_build)
             self.assertEqual(args.config, "config.json")
+
+
+class TestGradleUpdate(unittest.TestCase):
+    """Test build.gradle file update functionality."""
+
+    def setUp(self):
+        """Set up test environment."""
+        # Create a temporary directory
+        self.test_dir = tempfile.TemporaryDirectory()
+        self.flutter_project_path = self.test_dir.name
+
+        # Create android directory structure
+        self.android_dir = os.path.join(self.flutter_project_path, "android")
+        self.app_dir = os.path.join(self.android_dir, "app")
+        os.makedirs(self.app_dir, exist_ok=True)
+
+        # Create a mock key.properties file
+        key_properties_path = os.path.join(self.android_dir, "key.properties")
+        with open(key_properties_path, "w") as f:
+            f.write("storePassword=test_password\n")
+            f.write("keyPassword=test_password\n")
+            f.write("keyAlias=upload\n")
+            f.write("storeFile=../keystore.jks\n")
+
+        # Create a mock keystore
+        self.keystore_path = os.path.join(self.android_dir, "keystore.jks")
+        with open(self.keystore_path, "w") as f:
+            f.write("MOCK KEYSTORE")
+
+    def tearDown(self):
+        """Clean up after tests."""
+        self.test_dir.cleanup()
+
+    def test_update_kotlin_build_gradle(self):
+        """Test updating build.gradle.kts file."""
+        # Create a mock build.gradle.kts file
+        build_gradle_kts = os.path.join(self.app_dir, "build.gradle.kts")
+        with open(build_gradle_kts, "w") as f:
+            f.write(
+                """
+plugins {
+    id("com.android.application")
+    id("kotlin-android")
+    id("dev.flutter.flutter-gradle-plugin")
+}
+
+android {
+    namespace = "com.example.example"
+    compileSdk = flutter.compileSdkVersion
+    
+    defaultConfig {
+        applicationId = "com.example.example"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    buildTypes {
+        release {
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+"""
+            )
+
+        # Update the build.gradle.kts file
+        result = update_app_build_gradle(self.flutter_project_path)
+
+        # Check that the file was updated successfully
+        self.assertTrue(result)
+
+        # Read the updated file
+        with open(build_gradle_kts, "r") as f:
+            content = f.read()
+
+        # Verify that signing config was added
+        self.assertIn("signingConfigs {", content)
+        self.assertIn('create("release")', content)
+        self.assertIn('keyAlias = keystoreProperties["keyAlias"] as String', content)
+
+        # Verify that release build type was updated
+        self.assertIn('signingConfig = signingConfigs.getByName("release")', content)
+
+    def test_update_groovy_build_gradle(self):
+        """Test updating build.gradle file."""
+        # Create a mock build.gradle file
+        build_gradle = os.path.join(self.app_dir, "build.gradle")
+        with open(build_gradle, "w") as f:
+            f.write(
+                """
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+    id 'dev.flutter.flutter-gradle-plugin'
+}
+
+android {
+    namespace "com.example.example"
+    compileSdkVersion flutter.compileSdkVersion
+    
+    defaultConfig {
+        applicationId "com.example.example"
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+    }
+
+    buildTypes {
+        release {
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig signingConfigs.debug
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
+"""
+            )
+
+        # Update the build.gradle file
+        result = update_app_build_gradle(self.flutter_project_path)
+
+        # Check that the file was updated successfully
+        self.assertTrue(result)
+
+        # Read the updated file
+        with open(build_gradle, "r") as f:
+            content = f.read()
+
+        # Verify that signing config was added
+        self.assertIn("signingConfigs {", content)
+        self.assertIn("release {", content)
+        self.assertIn("keyAlias keystoreProperties['keyAlias']", content)
+
+        # Verify that release build type was updated
+        self.assertIn("signingConfig signingConfigs.release", content)
+
+    def test_no_key_properties(self):
+        """Test handling when key.properties doesn't exist."""
+        # Remove key.properties
+        os.remove(os.path.join(self.android_dir, "key.properties"))
+
+        # Create a mock build.gradle file
+        build_gradle = os.path.join(self.app_dir, "build.gradle")
+        with open(build_gradle, "w") as f:
+            f.write("android { }")
+
+        # Try to update the build.gradle file
+        result = update_app_build_gradle(self.flutter_project_path)
+
+        # Should return False since key.properties doesn't exist
+        self.assertFalse(result)
 
 
 if __name__ == "__main__":
