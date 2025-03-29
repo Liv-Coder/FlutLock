@@ -70,6 +70,29 @@ Use an existing keystore and build an App Bundle:
 python sign_flutter_app.py --path /path/to/flutter/project --keystore /path/to/existing.keystore --alias upload --build-type appbundle
 ```
 
+## Development
+
+### Branching Strategy
+
+This project follows a simple branching strategy:
+
+- `main`: Production-ready code. All code in this branch should be thoroughly tested and stable.
+- `development`: Active development branch where ongoing work happens.
+
+When contributing:
+
+1. Create feature branches from `development`
+2. Submit pull requests to the `development` branch
+3. After testing and review, changes will be merged to `main` for release
+
+### Continuous Integration
+
+GitHub Actions workflows are set up to:
+
+- Run tests for all branches
+- Perform additional deployment steps only on the `main` branch
+- Ensure code quality through linting and testing
+
 ## License
 
 MIT License - see the [LICENSE](LICENSE) file for details.

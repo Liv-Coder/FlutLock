@@ -8,6 +8,7 @@ The project is in its implementation phase. We have set up the foundation of the
 - Ensuring cross-platform compatibility
 - Adding more robust error handling
 - Preparing for distribution
+- Setting up GitHub branch strategy and CI/CD workflows
 
 ## Recent Changes
 
@@ -20,6 +21,8 @@ The project is in its implementation phase. We have set up the foundation of the
   - Windows batch file example
   - Bash script example
 - Added detailed CI/CD integration guide
+- Established Git branching strategy with main (stable) and development branches
+- Enhanced GitHub Actions workflow to support both branches with appropriate CI/CD steps
 
 ## Next Steps
 
@@ -29,6 +32,7 @@ The project is in its implementation phase. We have set up the foundation of the
 4. Prepare for packaging and distribution
 5. Consider configuration file support
 6. Plan for version 1.x enhancements
+7. Complete CI/CD pipeline integration
 
 ## Active Decisions and Considerations
 
@@ -38,3 +42,8 @@ The project is in its implementation phase. We have set up the foundation of the
 - **Cross-Platform Compatibility**: Using pathlib and os.path for platform-agnostic file operations
 - **CI/CD Integration**: Providing examples for popular CI/CD platforms
 - **Testing Strategy**: Created test script to validate functionality in various environments
+- **Branch Strategy**:
+  - `main` branch contains stable, production-ready code
+  - `development` branch for ongoing development and integration
+  - Feature branches should be created from and merged back to `development`
+  - Only merge to `main` when features are fully tested and ready for release

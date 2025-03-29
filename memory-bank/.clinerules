@@ -1,31 +1,46 @@
 # FlutLock Project Intelligence
 
 ## Project Patterns
+
 - Python-based command-line tool for automating Flutter app signing
 - Focus on security and ease of use for the signing process
 - Cross-platform compatibility is essential (Windows, macOS, Linux)
 - Starting with a simple approach and evolving to more complex features
 
 ## Naming Conventions
+
 - Use clear, descriptive function and variable names
 - Follow Python PEP 8 style guidelines
 - Use snake_case for variables and functions
 - Use CamelCase for classes
 
 ## Security Considerations
+
 - Never hardcode credentials or sensitive information
 - Use environment variables or secure input methods for passwords
 - Validate all user inputs
 - Handle keystores with appropriate file permissions
 
 ## Development Workflow
+
 - Start with a minimal, functional approach
 - Use modular functions that can be tested independently
 - Document code thoroughly
 - Consider cross-platform compatibility in all operations
 
+## Git Workflow
+
+- Two main branches: `main` (stable) and `development` (ongoing work)
+- Feature branches should be created from `development`
+- Pull requests should target `development` branch
+- Only merge to `main` when code is fully tested and ready for release
+- CI workflow runs tests on all branches
+- Deployment steps only run on `main` branch
+- Tag releases using semantic versioning (e.g., v1.0.0)
+
 ## User Preferences
+
 - Clear, informative command-line output
 - Guided experience with helpful error messages
 - Option for non-interactive mode in CI/CD environments
-- Security and reliability are top priorities 
+- Security and reliability are top priorities
