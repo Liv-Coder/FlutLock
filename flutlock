@@ -11,7 +11,12 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # Import from the package
-from flutter_signer import main
+from flutter_signer import main, __version__
 
 if __name__ == "__main__":
+    # Show version if requested directly
+    if len(sys.argv) == 2 and sys.argv[1] in ["--version", "-v"]:
+        print(f"FlutLock v{__version__}")
+        sys.exit(0)
+
     sys.exit(main())

@@ -46,6 +46,35 @@ Install development dependencies:
 pip install -r requirements-dev.txt
 ```
 
+## Project Structure
+
+The FlutLock project follows a modern Python package structure:
+
+```
+flutlock/
+├── config/                   # Example configuration files
+├── docs/                     # Documentation
+├── example/                  # Sample Flutter app for testing
+├── examples/                 # Example Python scripts demonstrating usage
+│   ├── ci_cd_example.py      # CI/CD integration example
+│   ├── config_file_example.py # Config-based usage example
+│   ├── optimized_config_example.py # Advanced config example
+│   └── sign_flutter_app.py   # Legacy compatibility script
+├── src/                      # Source code package
+│   └── flutter_signer/       # Main package
+│       ├── core/             # Core functionality
+│       ├── integrations/     # External integrations (future)
+│       └── utils/            # Utility modules
+├── tests/                    # Test suite
+├── flutlock                  # Direct CLI entry point
+├── pyproject.toml            # Project metadata
+├── README.md                 # Project documentation
+├── requirements.txt          # Runtime dependencies
+├── requirements-dev.txt      # Development dependencies
+├── setup.py                  # Package setup script
+└── sign_flutter_app.py       # Backward compatibility script
+```
+
 ## Usage
 
 ### Basic Command
@@ -201,41 +230,6 @@ You can skip this step if you prefer to manage your Gradle files manually:
 
 ```bash
 python -m flutter_signer --path /path/to/flutter/project --no-update-gradle
-```
-
-## Project Structure
-
-FlutLock is organized as a modern Python package:
-
-```
-flutlock/
-├── config/                  # Configuration examples
-├── docs/                    # Documentation
-├── examples/                # Example scripts
-├── src/
-│   └── flutter_signer/      # Main package
-│       ├── __init__.py
-│       ├── cli.py           # Command-line interface
-│       ├── core/            # Core functionality
-│       │   ├── __init__.py
-│       │   ├── exceptions.py # Exception classes
-│       │   └── keystore.py  # Keystore management
-│       ├── utils/           # Utility modules
-│       │   ├── __init__.py
-│       │   ├── config.py    # Configuration handling
-│       │   ├── dependencies.py # Dependency checking
-│       │   └── build.py     # Flutter build commands
-│       └── integrations/    # External integrations
-│           └── __init__.py
-├── tests/                   # Test suite
-├── .gitignore
-├── LICENSE
-├── MANIFEST.in              # Package manifest
-├── README.md                # Project documentation
-├── pyproject.toml           # Project metadata
-├── requirements.txt         # Runtime dependencies
-├── requirements-dev.txt     # Development dependencies
-└── setup.py                 # Package setup script
 ```
 
 ## Development

@@ -4,39 +4,12 @@ This directory contains example scripts and configuration files to help you get 
 
 ## Example Scripts
 
-### sign_flutter_app_example.py
-
-A simplified example showing how to use the FlutLock library to sign a Flutter Android app.
-
-```python
-from flutter_signer import FlutterSigner
-
-# Initialize the signer
-signer = FlutterSigner(
-    keystore_path="path/to/keystore.jks",
-    keystore_password="your_keystore_password",
-    key_alias="your_key_alias",
-    key_password="your_key_password",
-    android_app_path="path/to/your/android/app"
-)
-
-# Sign the app
-result = signer.sign()
-print(f"App signed successfully: {result.success}")
-if result.success:
-    print(f"Signed APK location: {result.signed_apk_path}")
-else:
-    print(f"Error: {result.error_message}")
-```
-
 ### sign_flutter_app.py
 
-This is the legacy script from previous versions of FlutLock. It is included for backward compatibility and reference.
-We recommend using the new `flutlock` command-line tool or importing the library as shown in the `sign_flutter_app_example.py`
-for new projects.
+This is a backward compatibility script that forwards to the new package-based structure. It's designed for users who are used to running the original script directly.
 
 ```
-flutlock sign --keystore path/to/keystore.jks --app path/to/android/app
+python examples/sign_flutter_app.py --path ./project --build-type apk
 ```
 
 ### ci_cd_example.py
@@ -98,10 +71,14 @@ config = {
 }
 ```
 
-### legacy_sign_flutter_app.py
+### optimized_config_example.py
 
-This script provides backward compatibility with older versions of FlutLock. It imports the
-new package structure while maintaining the original interface.
+This example demonstrates the enhanced configuration processing capabilities with variable substitution:
+
+- Using environment variables in configuration with ${VAR_NAME} syntax
+- Setting default values with ${VAR_NAME:-default} syntax
+- Using special variables like ${PROJECT_DIR} for path handling
+- Environment-specific configuration (dev/staging/prod)
 
 ## Using the Examples
 
@@ -110,13 +87,13 @@ new package structure while maintaining the original interface.
 3. Run the script:
 
 ```
-python sign_flutter_app_example.py
+python ci_cd_example.py
 ```
 
-Or use the new command-line tool:
+Or use the command-line tool directly:
 
 ```
-flutlock sign --config=my_config.yaml
+flutlock --config=my_config.json
 ```
 
 ## Configuration Examples

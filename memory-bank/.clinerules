@@ -59,3 +59,17 @@
 - Option for non-interactive mode in CI/CD environments
 - Security and reliability are top priorities
 - Providing detailed troubleshooting steps for common errors
+
+## Code Organization Patterns
+
+- Follow Python package-based architecture
+- Place imports in logical order (standard library, then third-party, then local)
+- Consolidate similar functionality into single modules
+- Integrate feature-related code into core modules rather than creating separate ones
+- Ensure backward compatibility for existing users
+- Maintain clear entry points with consistent interfaces
+- Document the purpose of each module at the top of the file
+- Keep entry point scripts minimal, delegating to the package for actual functionality
+- Prefer class-based exceptions for better error categorization
+- Use command-line argument groups for better organization
+- Implement verbose/quiet modes consistently across all modules
