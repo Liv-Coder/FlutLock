@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""
+FlutLock: Flutter Signing Automation Tool
+Command-line entry point script
+"""
+
+import os
+import sys
+
+# Add current directory to system path to find flutter_signer package
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+# Import from the package
+from flutter_signer import main
+
+if __name__ == "__main__":
+    sys.exit(main())

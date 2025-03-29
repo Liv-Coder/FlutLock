@@ -6,6 +6,7 @@
 - Focus on security and ease of use for the signing process
 - Cross-platform compatibility is essential (Windows, macOS, Linux)
 - Starting with a simple approach and evolving to more complex features
+- Using custom exception classes to categorize different types of errors
 
 ## Naming Conventions
 
@@ -13,6 +14,7 @@
 - Follow Python PEP 8 style guidelines
 - Use snake_case for variables and functions
 - Use CamelCase for classes
+- Error classes should have descriptive names ending with "Error"
 
 ## Security Considerations
 
@@ -20,6 +22,7 @@
 - Use environment variables or secure input methods for passwords
 - Validate all user inputs
 - Handle keystores with appropriate file permissions
+- Check password strength and provide warnings for weak passwords
 
 ## Development Workflow
 
@@ -27,6 +30,17 @@
 - Use modular functions that can be tested independently
 - Document code thoroughly
 - Consider cross-platform compatibility in all operations
+- Implement comprehensive error handling with specific guidance
+
+## Error Handling Patterns
+
+- Use custom exception classes inheriting from a base FlutLockError
+- Provide detailed error messages with troubleshooting steps
+- Include fallback mechanisms where appropriate
+- Structure error handling with try/except blocks for clarity
+- Validate input early to catch errors before processing
+- Set appropriate file permissions and handle permission errors
+- Check for missing dependencies with clear installation guidance
 
 ## Git Workflow
 
@@ -44,3 +58,4 @@
 - Guided experience with helpful error messages
 - Option for non-interactive mode in CI/CD environments
 - Security and reliability are top priorities
+- Providing detailed troubleshooting steps for common errors

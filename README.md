@@ -9,17 +9,28 @@ A command-line tool to automate the Android app signing process for Flutter appl
 - Executes Flutter build commands for APK and App Bundle
 - Verifies signatures using Android SDK tools
 - Works across Windows, macOS, and Linux environments
+- Supports non-interactive mode for CI/CD environments
+- Comprehensive error handling with clear messages
+- Modern Python package structure for easy integration
 
 ## Installation
 
 ### Prerequisites
 
-- Python 3.6+
+- Python 3.7+
 - Flutter SDK (in PATH)
 - JDK 8+ (for keystore operations)
 - Android SDK (for signature verification)
 
-### Setup
+### Direct Installation
+
+Install from PyPI:
+
+```bash
+pip install flutlock
+```
+
+### Development Setup
 
 Clone the repository and navigate to the project directory:
 
@@ -28,25 +39,51 @@ git clone https://github.com/yourusername/flutlock.git
 cd flutlock
 ```
 
-No external Python dependencies are required for the base version.
+Install development dependencies:
+
+```bash
+pip install -r requirements-dev.txt
+```
 
 ## Usage
 
 ### Basic Command
 
 ```bash
-python sign_flutter_app.py --path /path/to/flutter/project
+python -m flutter_signer --path /path/to/flutter/project
 ```
 
-### Options
+For backward compatibility, you can also use:
+
+```bash
+flutlock --path /path/to/flutter/project
+```
+
+### Command Line Options
 
 ```
---path PATH             Path to Flutter project root directory
---keystore PATH         Path to existing keystore file (optional)
---alias ALIAS           Alias for the keystore (optional)
---build-type TYPE       Build type: apk or appbundle (default: apk)
---verify                Verify the signature after building
---config PATH           Path to JSON configuration file
+Basic Options:
+  --path PATH             Path to Flutter project (default: current directory)
+  --build-type {apk,aab}  Build type: apk or aab (Android App Bundle) (default: apk)
+  --verify                Verify app signature after build (default: True)
+  --no-verify             Skip signature verification
+  --skip-build            Skip the build step (useful for testing keystores)
+  --config PATH           Path to JSON configuration file
+  --version               Show version information and exit
+
+CI/CD Environment Options:
+  --non-interactive       Run in non-interactive mode (for CI/CD environments)
+  --keystore-path PATH    Path to existing keystore or where to create a new one
+  --keystore-alias ALIAS  Keystore alias to use
+  --keystore-password-env ENV_VAR
+                          Environment variable containing keystore password (default: KEYSTORE_PASSWORD)
+  --key-password-env ENV_VAR
+                          Environment variable containing key password (default: KEY_PASSWORD)
+  --use-existing-keystore Use an existing keystore instead of generating a new one
+
+Logging Options:
+  -v, --verbose           Enable verbose output
+  -q, --quiet             Suppress all non-error output
 ```
 
 ### Environment Variables
@@ -54,7 +91,7 @@ python sign_flutter_app.py --path /path/to/flutter/project
 You can use environment variables instead of entering passwords interactively:
 
 - `KEYSTORE_PASSWORD`: Password for the keystore
-- `KEY_PASSWORD`: Password for the key
+- `KEY_PASSWORD`: Password for the key (optional if same as keystore password)
 - `STORE_ALIAS`: Alias for the key in the keystore
 
 ### JSON Configuration
@@ -62,10 +99,10 @@ You can use environment variables instead of entering passwords interactively:
 You can use a JSON configuration file to specify all options and avoid interactive prompts:
 
 ```bash
-python sign_flutter_app.py --path /path/to/flutter/project --config config.json
+python -m flutter_signer --path /path/to/flutter/project --config config.json
 ```
 
-Sample JSON configuration file:
+Sample JSON configuration file (placed in the `config` directory):
 
 ```json
 {
@@ -91,23 +128,114 @@ Sample JSON configuration file:
 }
 ```
 
-If any values are missing in the JSON file, you will be prompted to enter them interactively.
+If any values are missing in the JSON file, you will be prompted to enter them interactively (unless running in non-interactive mode).
 
 ## Examples
+
+### Basic Usage
 
 Generate a new keystore and build an APK:
 
 ```bash
-python sign_flutter_app.py --path /path/to/flutter/project --verify
+python -m flutter_signer --path /path/to/flutter/project
 ```
 
 Use an existing keystore and build an App Bundle:
 
 ```bash
-python sign_flutter_app.py --path /path/to/flutter/project --keystore /path/to/existing.keystore --alias upload --build-type appbundle
+python -m flutter_signer --path /path/to/flutter/project --keystore-path /path/to/existing.keystore --keystore-alias upload --build-type aab
+```
+
+### CI/CD Integration
+
+For CI/CD environments, use non-interactive mode with environment variables:
+
+```bash
+export KEYSTORE_PASSWORD="your_keystore_password"
+export KEY_PASSWORD="your_key_password"
+
+python -m flutter_signer --path /path/to/flutter/project --non-interactive --keystore-alias upload
+```
+
+Or with a configuration file:
+
+```bash
+python -m flutter_signer --path /path/to/flutter/project --non-interactive --config config.json
+```
+
+### GitHub Actions Example
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install FlutLock
+        run: pip install flutlock
+      - name: Build and Sign App
+        run: python -m flutter_signer --path . --non-interactive --keystore-alias upload
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+```
+
+## Project Structure
+
+FlutLock is organized as a modern Python package:
+
+```
+flutlock/
+├── config/                  # Configuration examples
+├── docs/                    # Documentation
+├── examples/                # Example scripts
+├── src/
+│   └── flutter_signer/      # Main package
+│       ├── __init__.py
+│       ├── cli.py           # Command-line interface
+│       ├── core/            # Core functionality
+│       │   ├── __init__.py
+│       │   ├── exceptions.py # Exception classes
+│       │   └── keystore.py  # Keystore management
+│       ├── utils/           # Utility modules
+│       │   ├── __init__.py
+│       │   ├── config.py    # Configuration handling
+│       │   ├── dependencies.py # Dependency checking
+│       │   └── build.py     # Flutter build commands
+│       └── integrations/    # External integrations
+│           └── __init__.py
+├── tests/                   # Test suite
+├── .gitignore
+├── LICENSE
+├── MANIFEST.in              # Package manifest
+├── README.md                # Project documentation
+├── pyproject.toml           # Project metadata
+├── requirements.txt         # Runtime dependencies
+├── requirements-dev.txt     # Development dependencies
+└── setup.py                 # Package setup script
 ```
 
 ## Development
+
+### Running Tests
+
+Run tests with pytest:
+
+```bash
+pytest
+```
+
+Or with coverage:
+
+```bash
+pytest --cov=flutter_signer tests/
+```
 
 ### Branching Strategy
 

@@ -1,0 +1,33 @@
+include LICENSE
+include README.md
+include requirements.txt
+include requirements-dev.txt
+include pyproject.toml
+
+# Include config examples
+recursive-include config *
+
+# Include documentation
+recursive-include docs *
+
+# Include examples
+recursive-include examples *
+recursive-include example *
+
+# Include the source package
+recursive-include src *
+
+# Exclude unnecessary files
+recursive-exclude example/.git *
+recursive-exclude example/__pycache__ *
+recursive-exclude example/.dart_tool *
+recursive-exclude tests/__pycache__ *
+recursive-exclude .github *
+exclude .gitignore
+exclude memory-bank/.clinerules
+recursive-exclude memory-bank *
+recursive-exclude __pycache__ *
+recursive-exclude *.pyc
+recursive-exclude *.pyo
+recursive-exclude *.pyd
+recursive-exclude .git * 
