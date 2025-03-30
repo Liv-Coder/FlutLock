@@ -17,7 +17,7 @@ from .core.properties import create_key_properties
 from .core.build import build_flutter_app, BuildError
 from .core.verify import verify_signature, SignatureError
 from .core.dependencies import check_dependencies, DependencyError
-from .core.gradle import update_app_build_gradle
+from .core.gradle import update_app_build_gradle, GradleError
 from .utils.config_processor import load_config_file, process_config, validate_config
 from .utils.exceptions import FlutLockError, ConfigError
 
@@ -138,6 +138,13 @@ def parse_args():
         help="Skip updating build.gradle file",
     )
 
+    # Add custom signing configuration name option
+    parser.add_argument(
+        "--signing-config-name",
+        default="release",
+        help="Custom name for the signing configuration in build.gradle",
+    )
+
     return parser.parse_args()
 
 
@@ -190,8 +197,7 @@ def main():
 
                 if store_password_env not in os.environ:
                     logger.error(
-                        "Non-interactive mode requires %s environment variable",
-                        store_password_env,
+                        "Non-interactive mode requires %s environment variable", store_password_env
                     )
                     return 1
 
@@ -203,93 +209,97 @@ def main():
                     )
                     return 1
 
-        # Check dependencies only if we're building
-        if not args.skip_build:
-            try:
-                check_dependencies()
-            except DependencyError as e:
-                logger.error("Dependency check failed: %s", e)
-                return 1
-        else:
-            logger.debug("Skipping dependency check because --skip-build is set")
-
-        # Set up paths
-        flutter_project_path = os.path.abspath(args.path)
-        logger.debug("Flutter project path: %s", flutter_project_path)
-
-        if not os.path.isdir(flutter_project_path):
-            logger.error("Flutter project directory not found: %s", flutter_project_path)
+        # Check for Flutter and other dependencies
+        logger.debug("Checking dependencies...")
+        try:
+            check_dependencies()
+        except DependencyError as e:
+            logger.error("Dependency check failed: %s", e)
             return 1
 
-        # Handle keystore
-        try:
-            if args.keystore_path:
-                # Use existing keystore path from argument
-                keystore_path = os.path.abspath(args.keystore_path)
-                logger.debug("Using keystore path from argument: %s", keystore_path)
+        # Set up the Flutter project path
+        flutter_project_path = os.path.abspath(args.path)
+        logger.debug("Using Flutter project path: %s", flutter_project_path)
 
-                if args.use_existing_keystore:
-                    if not os.path.isfile(keystore_path):
-                        logger.error("Existing keystore not found: %s", keystore_path)
-                        return 1
-                    logger.info("Using existing keystore: %s", keystore_path)
-                else:
-                    # Generate new keystore at specified path
-                    logger.debug("Generating new keystore at: %s", keystore_path)
-                    generate_keystore(keystore_path, args.keystore_alias, config=config)
-            else:
-                # Default keystore path
+        # Create or use existing keystore
+        try:
+            # Set up keystore parameters
+            keystore_path = None
+            alias = None
+            use_existing = False
+
+            # In non-interactive mode or with config, we use provided values
+            if args.non_interactive:
+                keystore_path = args.keystore_path
+                alias = args.keystore_alias
+                use_existing = args.use_existing_keystore
+            elif config and "keystore" in config:
+                keystore_config = config["keystore"]
+                keystore_path = keystore_config.get("path")
+                alias = keystore_config.get("alias")
+                use_existing = keystore_config.get("use_existing", False)
+
+            # If keystore path not provided, use default
+            if not keystore_path:
                 android_app_dir = os.path.join(flutter_project_path, "android", "app")
                 os.makedirs(android_app_dir, exist_ok=True)
                 keystore_path = os.path.join(android_app_dir, "upload.keystore")
-                logger.debug("Using default keystore path: %s", keystore_path)
 
-                if os.path.exists(keystore_path) and args.use_existing_keystore:
-                    logger.info("Using existing keystore at default location: %s", keystore_path)
-                else:
-                    # Generate new keystore
-                    logger.debug("Generating new keystore at default location")
-                    generate_keystore(keystore_path, args.keystore_alias, config=config)
+            logger.debug("Generating keystore at %s...", keystore_path)
+            keystore_result = generate_keystore(keystore_path, alias=alias, config=config)
+
+            if keystore_result:
+                logger.info("Keystore set up successfully: %s", keystore_path)
+
+                logger.debug("Creating key.properties file...")
+                key_props_path = create_key_properties(
+                    flutter_project_path, keystore_path, alias=alias, config=config
+                )
+                logger.info("Created key.properties file")
+            else:
+                logger.error("Failed to set up keystore")
+                return 1
 
         except KeystoreError as e:
             logger.error("Keystore error: %s", e)
             return 1
 
-        # Create key.properties
-        try:
-            create_key_properties(
-                flutter_project_path, keystore_path, args.keystore_alias, config=config
-            )
-        except FlutLockError as e:
-            logger.error("Error creating key.properties: %s", e)
-            return 1
-
-        # Update build.gradle if requested
-        if args.update_gradle:
+        # Update build.gradle if needed
+        if args.update_gradle and not args.skip_build:
             try:
-                update_app_build_gradle(flutter_project_path, config=config)
-            except FlutLockError as e:
-                logger.error("Error updating build.gradle: %s", e)
-                logger.warning("Continuing with build process despite build.gradle update failure")
-                # We don't return an error here to allow the process to continue
+                # Pass the custom signing configuration name to the gradle updater
+                success = update_app_build_gradle(
+                    args.path, config=config, signing_config_name=args.signing_config_name
+                )
+                if success:
+                    logger.info("build.gradle successfully updated with signing configuration")
+            except GradleError as e:
+                logger.error("Failed to update build.gradle: %s", e)
+                return 1
 
         # Build Flutter app
         if not args.skip_build:
             try:
-                # If appbundle was specified in older versions of the tool, convert it to aab
+                logger.debug("Building Flutter app...")
                 build_type = args.build_type
-                if build_type == "appbundle":
-                    build_type = "aab"
-                    logger.warning("'appbundle' option is deprecated, using 'aab' instead")
+                if config and "build" in config and "type" in config["build"]:
+                    build_type = config["build"]["type"]
 
+                logger.info("Building %s...", build_type.upper())
                 output_file = build_flutter_app(flutter_project_path, build_type)
+                logger.info("Build successful: %s", output_file)
 
-                # Verify signature
+                # Verify signature if requested
                 if args.verify:
-                    if output_file:
-                        verify_signature(output_file)
+                    logger.debug("Verifying app signature...")
+                    if verify_signature(output_file):
+                        logger.info(
+                            "✅ Signature verification successful for %s",
+                            os.path.basename(output_file),
+                        )
                     else:
-                        logger.warning("No output file found, skipping signature verification")
+                        logger.error("❌ Signature verification failed")
+                        return 1
             except BuildError as e:
                 logger.error("Build error: %s", e)
                 return 1
@@ -297,15 +307,21 @@ def main():
                 logger.error("Signature verification error: %s", e)
                 return 1
 
-        logger.info("FlutLock completed successfully")
+        logger.info("✅ FlutLock completed successfully")
         return 0
 
     except KeyboardInterrupt:
-        logger.error("Operation cancelled by user")
+        logger.error("\nOperation canceled by user")
         return 130
+    except FlutLockError as e:
+        logger.error("Fatal error: %s", e)
+        if args.verbose if "args" in locals() else False:
+            logger.debug("Traceback: %s", traceback.format_exc())
+        return 1
     except Exception as e:
         logger.error("Unexpected error: %s", e)
-        logger.debug("Stack trace: %s", traceback.format_exc())
+        if args.verbose if "args" in locals() else False:
+            logger.debug("Traceback: %s", traceback.format_exc())
         return 1
 
 

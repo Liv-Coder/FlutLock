@@ -7,6 +7,10 @@
 - Cross-platform compatibility is essential (Windows, macOS, Linux)
 - Starting with a simple approach and evolving to more complex features
 - Using custom exception classes to categorize different types of errors
+- Supporting customization through configuration files and CLI options
+- Implementing features with backward compatibility in mind
+- Providing detailed error guidance with troubleshooting steps
+- Following test-driven development for new features
 
 ## Naming Conventions
 
@@ -15,6 +19,8 @@
 - Use snake_case for variables and functions
 - Use CamelCase for classes
 - Error classes should have descriptive names ending with "Error"
+- Prefix test files with "test*" and test methods with "test*"
+- Use descriptive names for CLI parameters with hyphens (e.g., --signing-config-name)
 
 ## Security Considerations
 
@@ -23,6 +29,8 @@
 - Validate all user inputs
 - Handle keystores with appropriate file permissions
 - Check password strength and provide warnings for weak passwords
+- Create backups before modifying critical files
+- Use secure defaults when user doesn't provide specific values
 
 ## Development Workflow
 
@@ -31,6 +39,9 @@
 - Document code thoroughly
 - Consider cross-platform compatibility in all operations
 - Implement comprehensive error handling with specific guidance
+- Test new features across multiple platforms before merging
+- Follow test-driven development for new features
+- Create example scripts to demonstrate new functionality
 
 ## Error Handling Patterns
 
@@ -41,6 +52,9 @@
 - Validate input early to catch errors before processing
 - Set appropriate file permissions and handle permission errors
 - Check for missing dependencies with clear installation guidance
+- Include details and suggestions in exception objects
+- Categorize errors by type (Keystore, Gradle, Config, etc.)
+- Log additional debug information when verbose mode is enabled
 
 ## Git Workflow
 
@@ -51,6 +65,7 @@
 - CI workflow runs tests on all branches
 - Deployment steps only run on `main` branch
 - Tag releases using semantic versioning (e.g., v1.0.0)
+- Ensure cross-platform tests pass before merging PRs
 
 ## User Preferences
 
@@ -59,6 +74,9 @@
 - Option for non-interactive mode in CI/CD environments
 - Security and reliability are top priorities
 - Providing detailed troubleshooting steps for common errors
+- Customization options for different environments and workflows
+- Environment-specific configurations through variable substitution
+- Custom signing configuration names for different build variants
 
 ## Code Organization Patterns
 
@@ -73,3 +91,18 @@
 - Prefer class-based exceptions for better error categorization
 - Use command-line argument groups for better organization
 - Implement verbose/quiet modes consistently across all modules
+- Test functionality across multiple platforms
+- Create specific exception classes for different error categories
+- Ensure paths work on both Windows and Unix-like systems
+
+## Cross-Platform Considerations
+
+- Use os.path functions for platform-independent path handling
+- Normalize paths for cross-platform compatibility
+- Test on Windows, macOS, and Linux before releasing
+- Use GitHub Actions for automated cross-platform testing
+- Handle platform-specific file permissions appropriately
+- Account for differences in command execution across platforms
+- Provide platform-specific guidance in error messages when relevant
+- Consider path separator differences (\\ vs. /) in configurations
+- Test with different Python versions on each platform

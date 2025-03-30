@@ -80,6 +80,25 @@ This example demonstrates the enhanced configuration processing capabilities wit
 - Using special variables like ${PROJECT_DIR} for path handling
 - Environment-specific configuration (dev/staging/prod)
 
+### custom_signing_config_example.py
+
+This example demonstrates how to use custom signing configuration names, which is useful for:
+
+- Multiple flavor configurations in a single app
+- Custom build variants
+- Different signing configurations for debug/staging/production
+
+```bash
+python custom_signing_config_example.py --path=/path/to/flutter/project --signing-config-name=staging
+```
+
+The script shows how to:
+
+- Create a configuration with variable substitution
+- Specify a custom name for the signing configuration in build.gradle
+- Pass command-line arguments through to the FlutLock tool
+- Handle temporary files and cleanup
+
 ## Using the Examples
 
 1. Copy the example script you want to use to your project directory
