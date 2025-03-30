@@ -54,6 +54,8 @@ The FlutLock project follows a modern Python package structure:
 flutlock/
 ├── config/                   # Example configuration files
 ├── docs/                     # Documentation
+│   ├── configuration.md      # Configuration documentation
+│   └── commands.md           # Command reference and usage patterns
 ├── example/                  # Sample Flutter app for testing
 ├── examples/                 # Example Python scripts demonstrating usage
 │   ├── ci_cd_example.py      # CI/CD integration example
@@ -80,38 +82,58 @@ flutlock/
 ### Basic Command
 
 ```bash
+flutlock --path /path/to/flutter/project
+```
+
+For Python module usage:
+
+```bash
 python -m flutter_signer --path /path/to/flutter/project
 ```
 
-For backward compatibility, you can also use:
+### Comprehensive Help
+
+FlutLock now includes enhanced help commands:
 
 ```bash
-flutlock --path /path/to/flutter/project
+# Basic help with command options
+flutlock --help
+
+# Advanced help with detailed information and examples
+flutlock --help-advanced
 ```
+
+See the full [Commands Reference](docs/commands.md) for detailed documentation.
 
 ### Command Line Options
 
 ```
 Basic Options:
-  --path PATH             Path to Flutter project (default: current directory)
-  --build-type {apk,aab}  Build type: apk or aab (Android App Bundle) (default: apk)
-  --verify                Verify app signature after build (default: True)
-  --no-verify             Skip signature verification
-  --skip-build            Skip the build step (useful for testing keystores)
-  --update-gradle         Update app-level build.gradle with signing configuration (default: True)
-  --no-update-gradle      Skip updating build.gradle file
+  --path PATH             Path to Flutter project
   --config PATH           Path to JSON configuration file
   --version               Show version information and exit
+  --help-advanced         Show advanced help information and exit
+
+Build Options:
+  --build-type {apk,aab}  Build type: apk or aab (Android App Bundle)
+  --verify                Verify app signature after build
+  --no-verify             Skip signature verification
+  --skip-build            Skip the build step (useful for testing keystores)
+  --update-gradle         Update app-level build.gradle with signing configuration
+  --no-update-gradle      Skip updating build.gradle file
+
+Keystore Options:
+  --keystore-path PATH    Path to existing keystore or where to create a new one
+  --keystore-alias ALIAS  Keystore alias to use
+  --use-existing-keystore Use an existing keystore instead of generating a new one
+  --signing-config-name NAME  Custom name for the signing configuration in build.gradle
 
 CI/CD Environment Options:
   --non-interactive       Run in non-interactive mode (for CI/CD environments)
-  --keystore-path PATH    Path to existing keystore or where to create a new one
-  --keystore-alias ALIAS  Keystore alias to use
   --keystore-password-env ENV_VAR
-                          Environment variable containing keystore password (default: KEYSTORE_PASSWORD)
+                          Environment variable containing keystore password
   --key-password-env ENV_VAR
-                          Environment variable containing key password (default: KEY_PASSWORD)
-  --use-existing-keystore Use an existing keystore instead of generating a new one
+                          Environment variable containing key password
 
 Logging Options:
   -v, --verbose           Enable verbose output
@@ -124,26 +146,25 @@ You can use environment variables instead of entering passwords interactively:
 
 - `KEYSTORE_PASSWORD`: Password for the keystore
 - `KEY_PASSWORD`: Password for the key (optional if same as keystore password)
-- `STORE_ALIAS`: Alias for the key in the keystore
 
 ### JSON Configuration
 
 You can use a JSON configuration file to specify all options and avoid interactive prompts:
 
 ```bash
-python -m flutter_signer --path /path/to/flutter/project --config config.json
+flutlock --config config/flutlock_config.json
 ```
 
-Sample JSON configuration file (placed in the `config` directory):
+Sample JSON configuration file:
 
 ```json
 {
   "keystore": {
     "use_existing": false,
-    "path": "path/to/your/keystore.jks",
+    "path": "${PROJECT_DIR}/android/app/upload.keystore",
     "alias": "upload",
-    "store_password": "your_keystore_password",
-    "key_password": "your_key_password"
+    "store_password": "${KEYSTORE_PASSWORD:-keystore123456}",
+    "key_password": "${KEY_PASSWORD:-key123456}"
   },
   "signer": {
     "name": "Your Name",
@@ -155,27 +176,36 @@ Sample JSON configuration file (placed in the `config` directory):
   },
   "build": {
     "type": "apk",
-    "verify": true
+    "verify": true,
+    "skip_build": false,
+    "update_gradle": true
+  },
+  "flutter": {
+    "package": "com.example.${APP_NAME}",
+    "flavors": {
+      "dev": { "applicationId": "com.example.${APP_NAME}.dev" },
+      "prod": { "applicationId": "com.example.${APP_NAME}" }
+    }
   }
 }
 ```
 
-If any values are missing in the JSON file, you will be prompted to enter them interactively (unless running in non-interactive mode).
+See [Configuration Documentation](docs/configuration.md) for detailed information about configuration options and variable substitution.
 
-## Examples
+## Common Usage Examples
 
 ### Basic Usage
 
 Generate a new keystore and build an APK:
 
 ```bash
-python -m flutter_signer --path /path/to/flutter/project
+flutlock
 ```
 
 Use an existing keystore and build an App Bundle:
 
 ```bash
-python -m flutter_signer --path /path/to/flutter/project --keystore-path /path/to/existing.keystore --keystore-alias upload --build-type aab
+flutlock --keystore-path /path/to/existing.keystore --keystore-alias upload --build-type aab
 ```
 
 ### CI/CD Integration
@@ -186,50 +216,13 @@ For CI/CD environments, use non-interactive mode with environment variables:
 export KEYSTORE_PASSWORD="your_keystore_password"
 export KEY_PASSWORD="your_key_password"
 
-python -m flutter_signer --path /path/to/flutter/project --non-interactive --keystore-alias upload
+flutlock --non-interactive --keystore-alias upload
 ```
 
 Or with a configuration file:
 
 ```bash
-python -m flutter_signer --path /path/to/flutter/project --non-interactive --config config.json
-```
-
-### GitHub Actions Example
-
-```yaml
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      - name: Install FlutLock
-        run: pip install flutlock
-      - name: Build and Sign App
-        run: python -m flutter_signer --path . --non-interactive --keystore-alias upload
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-```
-
-#### Updating build.gradle with signing configuration
-
-By default, FlutLock will update your app-level build.gradle.kts (or build.gradle) file to include the signing configuration. This saves you from manually editing the Gradle file:
-
-```bash
-python -m flutter_signer --path /path/to/flutter/project
-```
-
-You can skip this step if you prefer to manage your Gradle files manually:
-
-```bash
-python -m flutter_signer --path /path/to/flutter/project --no-update-gradle
+flutlock --non-interactive --config config/flutlock_config.json
 ```
 
 ## Development

@@ -32,58 +32,152 @@ logger = logging.getLogger("flutlock")
 
 def parse_args():
     """Parse command-line arguments."""
+
+    # Custom formatter for better help formatting
+    class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
+        def _split_lines(self, text, width):
+            # Allow for newlines in help text
+            if "\n" in text:
+                return text.splitlines()
+            return super()._split_lines(text, width)
+
+        def _get_help_string(self, action):
+            # Add default values to help strings
+            help_text = action.help
+            if (
+                action.default is not argparse.SUPPRESS
+                and action.default is not None
+                and action.default != ""
+            ):
+                help_text = f"{help_text} (default: %(default)s)"
+            return help_text
+
+    # Create parser with enhanced description and epilog
     parser = argparse.ArgumentParser(
-        description="Flutter Android App Signing Tool",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description="""
+Flutter Android App Signing Tool
+
+FlutLock automates the Android app signing process for Flutter applications.
+It handles keystore generation, key.properties creation, build.gradle modification,
+and Flutter build execution.
+
+For detailed documentation: https://github.com/yourusername/flutlock
+        """,
+        formatter_class=CustomHelpFormatter,
+        epilog="""
+Examples:
+  # Basic usage (interactive mode)
+  flutlock
+  
+  # Use a configuration file
+  flutlock --config config/flutlock_config.json
+  
+  # Build an Android App Bundle instead of APK
+  flutlock --build-type aab
+  
+  # Skip the build step (just set up signing)
+  flutlock --skip-build
+  
+  # Non-interactive mode for CI/CD
+  flutlock --non-interactive --keystore-path android/app/keystore.jks
+  
+  # Custom signing configuration name
+  flutlock --signing-config-name production
+  
+  # Run from outside the project
+  flutlock --path /path/to/flutter/project
+  
+Environment Variables:
+  KEYSTORE_PASSWORD - Password for the keystore
+  KEY_PASSWORD - Password for the key (defaults to keystore password)
+  
+Configuration File (JSON):
+  See config/flutlock_config.json for an example
+  Supports variable substitution: ${VAR_NAME:-default_value}
+        """,
     )
-    parser.add_argument(
+
+    # Create argument groups for better organization
+    basic_group = parser.add_argument_group("Basic Options")
+    keystore_group = parser.add_argument_group("Keystore Options")
+    build_group = parser.add_argument_group("Build Options")
+    ci_group = parser.add_argument_group("CI/CD Environment Options")
+    verbosity_group = parser.add_argument_group("Logging Options")
+
+    # Basic options
+    basic_group.add_argument(
         "--path",
         default=".",
         help="Path to Flutter project",
     )
-    parser.add_argument(
+    basic_group.add_argument(
+        "--config",
+        help="Path to JSON configuration file",
+    )
+
+    # Build options
+    build_group.add_argument(
         "--build-type",
         choices=["apk", "aab"],
         default="apk",
         help="Build type: apk or aab (Android App Bundle)",
     )
-    parser.add_argument(
+    build_group.add_argument(
         "--verify",
         dest="verify",
         action="store_true",
         default=True,
         help="Verify app signature after build",
     )
-    parser.add_argument(
+    build_group.add_argument(
         "--no-verify",
         dest="verify",
         action="store_false",
         help="Skip signature verification",
     )
-    parser.add_argument(
+    build_group.add_argument(
         "--skip-build",
         action="store_true",
         help="Skip the build step (useful for testing keystores)",
     )
-    parser.add_argument(
-        "--config",
-        help="Path to JSON configuration file",
+    build_group.add_argument(
+        "--update-gradle",
+        action="store_true",
+        default=True,
+        help="Update app-level build.gradle with signing configuration",
+    )
+    build_group.add_argument(
+        "--no-update-gradle",
+        dest="update_gradle",
+        action="store_false",
+        help="Skip updating build.gradle file",
     )
 
-    # Add non-interactive mode arguments for CI environments
-    ci_group = parser.add_argument_group("CI/CD Environment Options")
+    # Keystore options
+    keystore_group.add_argument(
+        "--keystore-path",
+        help="Path to existing keystore or where to create a new one",
+    )
+    keystore_group.add_argument(
+        "--keystore-alias",
+        help="Keystore alias to use",
+    )
+    keystore_group.add_argument(
+        "--use-existing-keystore",
+        action="store_true",
+        help="Use an existing keystore instead of generating a new one",
+    )
+    keystore_group.add_argument(
+        "--signing-config-name",
+        default="release",
+        help="Custom name for the signing configuration in build.gradle",
+    )
+
+    # CI/CD Environment options
     ci_group.add_argument(
         "--non-interactive",
         action="store_true",
         help="Run in non-interactive mode (for CI/CD environments)",
-    )
-    ci_group.add_argument(
-        "--keystore-path",
-        help="Path to existing keystore or where to create a new one",
-    )
-    ci_group.add_argument(
-        "--keystore-alias",
-        help="Keystore alias to use",
     )
     ci_group.add_argument(
         "--keystore-password-env",
@@ -95,14 +189,9 @@ def parse_args():
         default="KEY_PASSWORD",
         help="Environment variable containing key password",
     )
-    ci_group.add_argument(
-        "--use-existing-keystore",
-        action="store_true",
-        help="Use an existing keystore instead of generating a new one",
-    )
 
     # Add version argument
-    parser.add_argument(
+    basic_group.add_argument(
         "--version",
         action="version",
         version=f"FlutLock v{__version__}",
@@ -110,7 +199,6 @@ def parse_args():
     )
 
     # Add verbosity options
-    verbosity_group = parser.add_argument_group("Logging Options")
     verbosity_group.add_argument(
         "-v",
         "--verbose",
@@ -124,28 +212,95 @@ def parse_args():
         help="Suppress all non-error output",
     )
 
-    # Add gradle configuration option
-    parser.add_argument(
-        "--update-gradle",
+    # Add help command that shows additional info
+    basic_group.add_argument(
+        "--help-advanced",
         action="store_true",
-        default=True,
-        help="Update app-level build.gradle with signing configuration",
-    )
-    parser.add_argument(
-        "--no-update-gradle",
-        dest="update_gradle",
-        action="store_false",
-        help="Skip updating build.gradle file",
+        help="Show advanced help information and exit",
+        dest="help_advanced",
     )
 
-    # Add custom signing configuration name option
-    parser.add_argument(
-        "--signing-config-name",
-        default="release",
-        help="Custom name for the signing configuration in build.gradle",
-    )
+    args = parser.parse_args()
 
-    return parser.parse_args()
+    # Handle custom help command
+    if hasattr(args, "help_advanced") and args.help_advanced:
+        print_advanced_help()
+        sys.exit(0)
+
+    return args
+
+
+def print_advanced_help():
+    """Print advanced help information."""
+    print(
+        """
+FlutLock Advanced Help
+======================
+
+Configuration File Format
+------------------------
+FlutLock supports JSON configuration files with variable substitution.
+Example:
+
+{
+  "keystore": {
+    "path": "${PROJECT_DIR}/android/app/upload.keystore",
+    "alias": "upload",
+    "store_password": "${KEYSTORE_PASSWORD:-password123}",
+    "key_password": "${KEY_PASSWORD:-password123}",
+    "use_existing": false
+  },
+  "signer": {
+    "name": "Your Name",
+    "org_unit": "Development",
+    "organization": "Your Company",
+    "locality": "Your City",
+    "state": "Your State",
+    "country": "US"
+  },
+  "build": {
+    "type": "apk",
+    "verify": true,
+    "skip_build": false,
+    "update_gradle": true
+  },
+  "flutter": {
+    "package": "com.example.${APP_NAME}",
+    "flavors": {
+      "dev": {"applicationId": "com.example.${APP_NAME}.dev"},
+      "prod": {"applicationId": "com.example.${APP_NAME}"}
+    }
+  }
+}
+
+Special Variables
+----------------
+- ${PROJECT_DIR}: Absolute path to the Flutter project directory
+- ${APP_NAME}: Name of the Flutter application (from directory name)
+
+Environment Variables
+-------------------
+- KEYSTORE_PASSWORD: Password for the keystore
+- KEY_PASSWORD: Password for the key (defaults to keystore password)
+
+Workflow
+-------
+1. Checks dependencies (Flutter, keytool, apksigner)
+2. Generates or uses existing keystore
+3. Creates/updates key.properties file
+4. Modifies build.gradle file (if --update-gradle)
+5. Runs Flutter build (unless --skip-build)
+6. Verifies signature (if --verify)
+
+Troubleshooting
+--------------
+- Use --verbose for detailed logging
+- Check paths and permissions
+- Verify Android SDK and Flutter installations
+- Ensure build.gradle follows standard format
+- For more details: https://github.com/yourusername/flutlock/docs
+"""
+    )
 
 
 def main():
