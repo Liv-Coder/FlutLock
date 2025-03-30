@@ -14,6 +14,52 @@ logger = logging.getLogger("flutlock")
 VARIABLE_PATTERN = re.compile(r"\$\{([A-Za-z0-9_]+)(?:\:-([^}]*))?\}")
 
 
+def find_global_config():
+    """
+    Find a global configuration file.
+
+    Searches for flutlock_config.json in the following locations:
+    1. Current working directory
+    2. User's home directory
+    3. Global config directory (platform-specific)
+
+    Returns:
+        Path to the global config file if found, None otherwise
+    """
+    # Potential locations for the global config file
+    config_file_name = "flutlock_config.json"
+    potential_locations = [
+        # Current working directory
+        os.path.join(os.getcwd(), config_file_name),
+        # User's home directory
+        os.path.join(str(Path.home()), config_file_name),
+        os.path.join(str(Path.home()), ".flutlock", config_file_name),
+        # Platform-specific global config directory
+        os.path.join(str(Path.home()), ".config", "flutlock", config_file_name),  # Linux
+    ]
+
+    # Check Windows AppData location
+    if os.name == "nt":
+        app_data = os.environ.get("APPDATA")
+        if app_data:
+            potential_locations.append(os.path.join(app_data, "flutlock", config_file_name))
+
+    # Check macOS Application Support directory
+    elif os.name == "posix" and os.path.exists("/Users"):
+        mac_config_dir = os.path.join(
+            str(Path.home()), "Library", "Application Support", "flutlock"
+        )
+        potential_locations.append(os.path.join(mac_config_dir, config_file_name))
+
+    # Check for the first existing configuration file
+    for location in potential_locations:
+        if os.path.exists(location):
+            logger.debug("Found global configuration file at: %s", location)
+            return location
+
+    return None
+
+
 def load_config_file(config_path):
     """
     Load configuration from a JSON file.

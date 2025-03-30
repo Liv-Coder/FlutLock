@@ -2,7 +2,7 @@
 
 ## Current Work Focus
 
-The current development focus has been on completing the short-term sprint tasks and preparing for medium-term feature developments. Major accomplishments include implementing support for custom signing configuration names in build.gradle, improving error handling and user feedback mechanisms, creating detailed documentation for all configuration options, and establishing a robust cross-platform testing infrastructure that runs on Windows, macOS, and Linux.
+The current development focus has been on completing the short-term sprint tasks and preparing for medium-term feature developments. Major accomplishments include implementing support for custom signing configuration names in build.gradle, improving error handling and user feedback mechanisms, creating detailed documentation for all configuration options, establishing a robust cross-platform testing infrastructure that runs on Windows, macOS, and Linux, and enhancing build.gradle.kts file handling for Flutter projects.
 
 The next development phase will focus on implementing Flutter flavor support, which builds upon the custom signing configuration work. This will allow for different build variants (development, staging, production) with their own signing configurations and settings.
 
@@ -12,10 +12,34 @@ Major components of the current and upcoming work include:
 - Enhanced exception handling with detailed troubleshooting suggestions
 - Comprehensive documentation for all configuration options with examples
 - Cross-platform testing infrastructure with GitHub Actions
+- Improved build.gradle.kts file handling for Flutter projects
 - Flutter flavor support for different build variants
 - Preparation for integrations with external services (Play Store API, Fastlane)
 
 ## Recent Changes
+
+- Significantly enhanced build.gradle.kts file handling for pure Kotlin DSL:
+
+  - Implemented a robust property loading pattern with FileInputStream.use() and proper exception handling
+  - Added comprehensive null-checking for keystores and signing configurations
+  - Improved support for modern Kotlin DSL buildTypes with getByName() pattern
+  - Included detailed warning messages for error conditions
+  - Implemented safer property access using getProperty() instead of direct indexing
+  - Added better fallback handling when key.properties is missing or incomplete
+  - Created a utility function for safer property loading
+  - Improved detection of pure Kotlin DSL vs hybrid Groovy-Kotlin syntax files
+
+- Improved build.gradle.kts file handling for Flutter projects:
+
+  - Redesigned Kotlin DSL detection with positive pattern matching instead of negative assumptions
+  - Added explicit detection of Kotlin language features to differentiate pure Kotlin DSL from hybrid files
+  - Fixed compatibility issues with Kotlin DSL syntax in newer Flutter projects
+  - Enhanced detection of hybrid Groovy-Kotlin DSL syntax in .kts files
+  - Added support for handling multiple signingConfig lines in buildTypes
+  - Added better handling of TODO comments in build.gradle.kts files
+  - Improved error messaging with file path information
+  - Simplified code structure for managing both .gradle and .gradle.kts files
+  - Fixed storeFile handling to match common Flutter project configurations
 
 - Added support for custom signing configuration names in build.gradle:
 
@@ -69,6 +93,7 @@ Major components of the current and upcoming work include:
    - ✅ Improve error handling and user feedback
    - ✅ Add detailed documentation for all configuration options
    - ✅ Run a complete test suite across multiple platforms
+   - ✅ Improve build.gradle.kts file handling for Flutter projects
 
 2. **Short-term (Next Sprint):**
 
@@ -106,5 +131,7 @@ Major components of the current and upcoming work include:
 - **Gradle Management:** We've implemented automatic modification of build.gradle files with an opt-out option, allowing users to skip this step if they prefer to manage Gradle files manually.
 
 - **Configuration Processing:** We're using a flexible approach to configuration with variable substitution and default values, making it easier to use the same configuration across different environments.
+
+- **Gradle File Handling:** We've implemented a comprehensive approach to handling build.gradle.kts files by detecting Kotlin language features, implementing a robust property loading mechanism, and adding proper null-checking throughout. This significantly improves reliability across different Gradle and Kotlin versions, and handles both modern Kotlin DSL syntax and hybrid Groovy-Kotlin files correctly.
 
 The primary goal is to continue improving the tool's flexibility and user experience while ensuring reliable operation across different platforms and project configurations.

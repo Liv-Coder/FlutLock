@@ -53,6 +53,10 @@
   - File backup creation before modifications
   - Command-line options to control this feature
   - Comprehensive tests for various scenarios
+  - Enhanced detection of hybrid Groovy-Kotlin syntax in .kts files
+  - Support for multiple signingConfig lines in buildTypes
+  - Better handling of TODO comments in build.gradle.kts files
+  - Improved error messaging with file path information
 - Enhanced configuration processing implemented:
   - Variable substitution in configuration files (${VAR_NAME} syntax)
   - Default values for variables (${VAR_NAME:-default} syntax)
@@ -139,28 +143,37 @@ The project follows a package-based architecture with clean separation of concer
 
 The most recent enhancements include:
 
-1. **Custom signing configuration names in build.gradle**:
+1. **Improved build.gradle.kts file handling for Flutter projects**:
+
+   - Enhanced detection of hybrid Groovy-Kotlin DSL syntax in .kts files
+   - Added support for handling multiple signingConfig lines in buildTypes
+   - Added better handling of TODO comments in build.gradle.kts files
+   - Improved error messaging with file path information
+   - Simplified code structure for managing both .gradle and .gradle.kts files
+   - Fixed storeFile handling to match common Flutter project configurations
+
+2. **Custom signing configuration names in build.gradle**:
 
    - Added support for specifying custom names for signing configurations
    - Created a new CLI parameter (--signing-config-name)
    - Updated the Gradle file modification logic to use custom names
    - Added example script demonstrating the feature
 
-2. **Enhanced error handling and user feedback**:
+3. **Enhanced error handling and user feedback**:
 
    - Improved exception classes with detailed troubleshooting suggestions
    - Added a new GradleError class for better error categorization
    - Enhanced error messages throughout the codebase
    - Implemented more descriptive user feedback
 
-3. **Comprehensive documentation**:
+4. **Comprehensive documentation**:
 
    - Created detailed documentation for all configuration options
    - Added examples for different configuration scenarios
    - Documented the custom signing configuration feature
    - Updated examples README with new features
 
-4. **Cross-platform testing infrastructure**:
+5. **Cross-platform testing infrastructure**:
    - Set up GitHub Actions workflow for testing on Windows, macOS, and Linux
    - Added tests for different Python versions
    - Created platform-specific setup steps for dependencies

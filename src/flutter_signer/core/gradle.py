@@ -82,32 +82,124 @@ def update_app_build_gradle(flutter_project_path, config=None, signing_config_na
 
         # Create the signing configuration block
         if is_kotlin_dsl:
-            # For Kotlin DSL (build.gradle.kts)
-            key_properties_code = f"""
+            # For .kts files, we need to determine if they're using Kotlin DSL or Groovy syntax
+            # Since some Flutter projects use Groovy syntax even in .kts files
+
+            # Better detection of hybrid syntax vs pure Kotlin DSL
+            # Rather than assuming all .kts files with some Groovy patterns are hybrid,
+            # look for specific Kotlin patterns first
+
+            # Check for Kotlin DSL markers - these would indicate pure Kotlin DSL
+            kotlin_patterns = [
+                "val ",  # Variable declarations
+                "import kotlin.",  # Kotlin imports
+                "= listOf",  # Kotlin collection initialization
+                ": String",  # Type declarations
+                "buildTypes {",  # Kotlin-style blocks
+                "plugins {",  # Modern plugins block
+                "android {",  # Android block in Kotlin style
+                "implementation(platform",  # Kotlin dependency notation
+            ]
+
+            is_pure_kotlin = any(pattern in build_gradle_content for pattern in kotlin_patterns)
+
+            # If it's a .kts file and we've found Kotlin patterns, use pure Kotlin DSL
+            # Otherwise, assume it's a hybrid file using Groovy syntax
+            if is_pure_kotlin:
+                # For pure Kotlin DSL (build.gradle.kts) - modern implementation with better error handling
+                key_properties_code = f"""
     // Load key.properties file
+    import java.util.Properties
+    import java.io.FileInputStream
+
+    // Function to safely load properties
+    fun loadProperties(file: java.io.File): Properties {{
+        val properties = Properties()
+        if (file.isFile) {{ // Check if it's a file and exists
+            try {{
+                FileInputStream(file).use {{ fis ->
+                    properties.load(fis)
+                }}
+            }} catch (e: Exception) {{
+                // Log the exception or handle it as needed
+                logger.warn("Could not load properties file ${{file.name}}: ${{e.message}}")
+            }}
+        }} else {{
+            logger.warn("Properties file not found: ${{file.absolutePath}}")
+        }}
+        return properties
+    }}
+
+    // Load keystore properties
     val keystorePropertiesFile = rootProject.file("key.properties")
-    val keystoreProperties = java.util.Properties()
-    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
-    
+    val keystoreProperties = loadProperties(keystorePropertiesFile)
+
+    // Define signing configurations
     signingConfigs {{
+        // Creates a signing configuration named '{signing_config_name}'
         create("{signing_config_name}") {{
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+            // Use getProperty which returns null if key doesn't exist
+            val storeFilePath = keystoreProperties.getProperty("storeFile")
+            val storePass = keystoreProperties.getProperty("storePassword")
+            val alias = keystoreProperties.getProperty("keyAlias")
+            val keyPass = keystoreProperties.getProperty("keyPassword")
+
+            // Only configure if all properties were found
+            if (storeFilePath != null && storePass != null && alias != null && keyPass != null) {{
+                // Use project.file to resolve the path relative to the project
+                storeFile = project.file(storeFilePath)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
+            }} else {{
+                logger.warn("Release signing configuration in build.gradle.kts is missing details from key.properties. Release builds may fail or use debug signing.")
+            }}
         }}
     }}
 """
-            release_config = f"""
-            signingConfig = signingConfigs.getByName("{signing_config_name}")
+                # Updated release config with null checking for extra safety
+                release_config = f"""
+            // Apply the '{signing_config_name}' signing configuration defined above
+            // Make sure 'signingConfigs.{signing_config_name}' actually exists and is configured
+            if (signingConfigs.findByName("{signing_config_name}")?.storeFile != null) {{
+                signingConfig = signingConfigs.getByName("{signing_config_name}")
+            }} else {{
+                logger.warn("Signing config '{signing_config_name}' not fully configured (check key.properties). Release build may use debug signing.")
+                // Fallback to debug signing explicitly if desired/needed
+                // signingConfig = signingConfigs.getByName("debug")
+            }}
+"""
+            else:
+                # For hybrid Kotlin DSL (build.gradle.kts with Groovy syntax)
+                key_properties_code = f"""
+    // Load key.properties file
+    def keystoreProperties = new Properties()
+    def keystorePropertiesFile = rootProject.file('key.properties')
+    if (keystorePropertiesFile.exists()) {{
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    }}
+    
+    signingConfigs {{
+        {signing_config_name} {{
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }}
+    }}
+"""
+                release_config = f"""
+            signingConfig signingConfigs.{signing_config_name}
 """
         else:
             # For Groovy DSL (build.gradle)
             key_properties_code = f"""
     // Load key.properties file
-    def keystorePropertiesFile = rootProject.file("key.properties")
     def keystoreProperties = new Properties()
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    def keystorePropertiesFile = rootProject.file('key.properties')
+    if (keystorePropertiesFile.exists()) {{
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    }}
     
     signingConfigs {{
         {signing_config_name} {{
@@ -123,89 +215,92 @@ def update_app_build_gradle(flutter_project_path, config=None, signing_config_na
 """
 
         # Insert the signing config in the android block
-        if is_kotlin_dsl:
-            # For Kotlin DSL, find the android { block
-            android_block_pattern = r"android\s*\{"
-            match = re.search(android_block_pattern, build_gradle_content)
-            if match:
-                insert_pos = match.end()
-                # Insert after the android block opening
-                modified_content = (
-                    build_gradle_content[:insert_pos]
-                    + key_properties_code
-                    + build_gradle_content[insert_pos:]
-                )
-            else:
-                error_msg = "Could not find android { block in build.gradle.kts"
-                logger.error(error_msg)
-                raise GradleError(
-                    message=error_msg,
-                    details="The android { } block is required in the build.gradle.kts file.",
-                    file_path=build_gradle_path,
-                )
+        android_block_pattern = r"android\s*\{"
+        match = re.search(android_block_pattern, build_gradle_content)
+        if match:
+            insert_pos = match.end()
+            # Insert after the android block opening
+            modified_content = (
+                build_gradle_content[:insert_pos]
+                + key_properties_code
+                + build_gradle_content[insert_pos:]
+            )
         else:
-            # For Groovy DSL
-            android_block_pattern = r"android\s*\{"
-            match = re.search(android_block_pattern, build_gradle_content)
-            if match:
-                insert_pos = match.end()
-                # Insert after the android block opening
-                modified_content = (
-                    build_gradle_content[:insert_pos]
-                    + key_properties_code
-                    + build_gradle_content[insert_pos:]
-                )
-            else:
-                error_msg = "Could not find android { block in build.gradle"
-                logger.error(error_msg)
-                raise GradleError(
-                    message=error_msg,
-                    details="The android { } block is required in the build.gradle file.",
-                    file_path=build_gradle_path,
-                )
+            error_msg = f"Could not find android {{ block in {build_gradle_path}"
+            logger.error(error_msg)
+            raise GradleError(
+                message=error_msg,
+                details="The android { } block is required in the build.gradle file.",
+                file_path=build_gradle_path,
+            )
 
         # Update the release buildType to use the signing config
-        if is_kotlin_dsl:
-            # For Kotlin DSL find the release { block within buildTypes
-            release_block_pattern = r"release\s*\{([^}]*)\}"
-            match = re.search(release_block_pattern, modified_content)
-            if match:
-                release_block = match.group(1)
-                # Replace signingConfig if it exists, otherwise add it
-                if "signingConfig" in release_block:
+        release_block_pattern = r"release\s*\{([^}]*)\}"
+        match = re.search(release_block_pattern, modified_content)
+        if match:
+            release_block = match.group(1)
+
+            # Check if signingConfig is already in the release block
+            if "signingConfig" in release_block:
+                # There might be multiple signingConfig lines, handle both cases
+                if is_kotlin_dsl and is_pure_kotlin:
+                    # For pure Kotlin DSL
                     modified_release = re.sub(
                         r"signingConfig\s*=\s*signingConfigs\.getByName\([\"']debug[\"']\)",
                         f'signingConfig = signingConfigs.getByName("{signing_config_name}")',
                         release_block,
                     )
                 else:
-                    modified_release = release_block + release_config
-
-                modified_content = modified_content.replace(release_block, modified_release)
-            else:
-                logger.warning("Could not find release { block in build.gradle.kts")
-                logger.info(
-                    f"Created signing config but couldn't automatically apply it to release build type"
-                )
-        else:
-            # For Groovy DSL find the release { block within buildTypes
-            release_block_pattern = r"release\s*\{([^}]*)\}"
-            match = re.search(release_block_pattern, modified_content)
-            if match:
-                release_block = match.group(1)
-                # Replace signingConfig if it exists, otherwise add it
-                if "signingConfig" in release_block:
+                    # For Groovy or hybrid Kotlin DSL
                     modified_release = re.sub(
                         r"signingConfig\s+signingConfigs\.debug",
                         f"signingConfig signingConfigs.{signing_config_name}",
                         release_block,
                     )
+
+                # If there are comments suggesting to add signing config, remove them
+                modified_release = re.sub(r"//\s*TODO:.*signing config.*\n", "", modified_release)
+            else:
+                # If no signingConfig line exists, add it
+                modified_release = release_block + release_config
+
+            modified_content = modified_content.replace(release_block, modified_release)
+        else:
+            # Handle the getByName pattern commonly used in modern Kotlin DSL
+            release_block_pattern = r"getByName\s*\(\s*[\"']release[\"']\s*\)\s*\{([^}]*)\}"
+            match = re.search(release_block_pattern, modified_content)
+
+            if match:
+                release_block = match.group(1)
+
+                # Check if signingConfig is already in the release block
+                if "signingConfig" in release_block:
+                    if is_kotlin_dsl and is_pure_kotlin:
+                        # For pure Kotlin DSL with getByName pattern
+                        modified_release = re.sub(
+                            r"signingConfig\s*=\s*signingConfigs\.getByName\([\"']debug[\"']\)",
+                            f'signingConfig = signingConfigs.getByName("{signing_config_name}")',
+                            release_block,
+                        )
+                    else:
+                        # For Groovy or hybrid Kotlin DSL
+                        modified_release = re.sub(
+                            r"signingConfig\s+signingConfigs\.debug",
+                            f"signingConfig signingConfigs.{signing_config_name}",
+                            release_block,
+                        )
+
+                    # Remove TODO comments
+                    modified_release = re.sub(
+                        r"//\s*TODO:.*signing config.*\n", "", modified_release
+                    )
                 else:
+                    # If no signingConfig line exists, add it
                     modified_release = release_block + release_config
 
                 modified_content = modified_content.replace(release_block, modified_release)
             else:
-                logger.warning("Could not find release { block in build.gradle")
+                logger.warning(f"Could not find release {{ block in {build_gradle_path}")
                 logger.info(
                     f"Created signing config but couldn't automatically apply it to release build type"
                 )

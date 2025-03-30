@@ -6,6 +6,22 @@ This directory contains example configuration files for FlutLock.
 
 This is a sample configuration file that demonstrates all available options for FlutLock. You can use this as a template for creating your own configuration files.
 
+## flutlock_global_config_sample.json
+
+This is a sample global configuration file that you can copy to one of the supported global configuration locations. To use a global configuration:
+
+1. Copy this file to one of the following locations:
+
+   - Your home directory: `~/flutlock_config.json`
+   - A hidden directory in your home: `~/.flutlock/flutlock_config.json`
+   - Linux: `~/.config/flutlock/flutlock_config.json`
+   - Windows: `%APPDATA%\flutlock\flutlock_config.json`
+   - macOS: `~/Library/Application Support/flutlock/flutlock_config.json`
+
+2. Customize the file with your settings
+
+3. Run FlutLock with: `flutlock --config global`
+
 ## test_config.json
 
 This configuration file is used for automated testing and contains minimal test settings.

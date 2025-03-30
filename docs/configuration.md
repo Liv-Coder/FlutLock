@@ -34,6 +34,26 @@ FlutLock uses JSON configuration files with support for variable substitution. C
 }
 ```
 
+## Global Configuration File
+
+FlutLock supports using a global configuration file named `flutlock_config.json`. You can place this file in any of the following locations:
+
+- Current working directory
+- User's home directory
+- User's `.flutlock` directory
+- Platform-specific configuration directories:
+  - Linux: `~/.config/flutlock/`
+  - Windows: `%APPDATA%/flutlock/`
+  - macOS: `~/Library/Application Support/flutlock/`
+
+To use a global configuration file, run:
+
+```bash
+flutlock --config global
+```
+
+FlutLock will search for the configuration file in the locations listed above (in that order) and use the first one it finds.
+
 ## Variable Substitution
 
 FlutLock supports variable substitution in configuration files using the `${VAR_NAME}` syntax. You can also specify default values using `${VAR_NAME:-default_value}`.
@@ -102,15 +122,16 @@ The `flutter` section configures Flutter-specific options:
 
 Many configuration options can also be specified via command-line arguments:
 
-| Argument                                 | Description                                               | Default                 |
-| ---------------------------------------- | --------------------------------------------------------- | ----------------------- |
-| `--path`                                 | Path to Flutter project                                   | Current directory (`.`) |
-| `--build-type`                           | Build type (`apk` or `aab`)                               | `apk`                   |
-| `--verify` / `--no-verify`               | Whether to verify app signature after build               | `--verify`              |
-| `--skip-build`                           | Skip the build step                                       | `false`                 |
-| `--config`                               | Path to JSON configuration file                           | None                    |
-| `--signing-config-name`                  | Custom name for the signing configuration in build.gradle | `release`               |
-| `--update-gradle` / `--no-update-gradle` | Whether to update app-level build.gradle                  | `--update-gradle`       |
+| Argument                                 | Description                                                | Default                 |
+| ---------------------------------------- | ---------------------------------------------------------- | ----------------------- |
+| `--path`                                 | Path to Flutter project                                    | Current directory (`.`) |
+| `--build-type`                           | Build type (`apk` or `aab`)                                | `apk`                   |
+| `--verify` / `--no-verify`               | Whether to verify app signature after build                | `--verify`              |
+| `--skip-build`                           | Skip the build step                                        | `false`                 |
+| `--config`                               | Path to JSON configuration file                            | None                    |
+| `--signing-config-name`                  | Custom name for the signing configuration in build.gradle  | `release`               |
+| `--update-gradle` / `--no-update-gradle` | Whether to update app-level build.gradle                   | `--update-gradle`       |
+| `--only-update-gradle`                   | Only update build.gradle without generating keystore, etc. | `false`                 |
 
 ### CI/CD Environment Options
 

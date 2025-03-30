@@ -11,6 +11,7 @@
 - Implementing features with backward compatibility in mind
 - Providing detailed error guidance with troubleshooting steps
 - Following test-driven development for new features
+- Handling hybrid syntax in build.gradle.kts files by content detection instead of just file extension
 
 ## Naming Conventions
 
@@ -94,6 +95,31 @@
 - Test functionality across multiple platforms
 - Create specific exception classes for different error categories
 - Ensure paths work on both Windows and Unix-like systems
+- Examine file contents rather than just file extensions to determine syntax style
+- Handle multiple configuration variants in build files
+
+## Gradle File Handling Patterns
+
+- Detect file syntax based on content using positive pattern matching for Kotlin features
+- Look for specific Kotlin language markers rather than absence of Groovy patterns
+- Check for Kotlin-specific syntax like "val", "import kotlin", type declarations, etc.
+- Support both pure Kotlin DSL and hybrid Groovy-Kotlin syntax in .kts files
+- Account for Flutter's common use of Groovy syntax in .kts files
+- Implement robust property loading with try-catch blocks and proper resource management
+- Use FileInputStream.use() for automatic resource closing in Kotlin DSL templates
+- Add comprehensive null-checking for keystore properties and signing configurations
+- Provide informative warning logs for missing configurations
+- Support modern Kotlin DSL patterns like getByName() for buildTypes
+- Use safer property access with getProperty() instead of direct indexing
+- Implement utility functions for safer property loading
+- Check for multiple signingConfig lines in release buildType
+- Clean up TODO comments when adding signing configurations
+- Preserve existing file structure while adding missing configurations
+- Create backups before modifying Gradle files
+- Handle the null case for storeFile using the ternary operator pattern
+- Ensure proper variable scoping and initialization
+- Simplify code by combining similar handling paths for different file types
+- Improve error messages by including specific file paths in error reporting
 
 ## Cross-Platform Considerations
 

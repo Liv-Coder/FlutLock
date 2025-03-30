@@ -18,7 +18,12 @@ from .core.build import build_flutter_app, BuildError
 from .core.verify import verify_signature, SignatureError
 from .core.dependencies import check_dependencies, DependencyError
 from .core.gradle import update_app_build_gradle, GradleError
-from .utils.config_processor import load_config_file, process_config, validate_config
+from .utils.config_processor import (
+    load_config_file,
+    process_config,
+    validate_config,
+    find_global_config,
+)
 from .utils.exceptions import FlutLockError, ConfigError
 
 # Configure logging
@@ -72,11 +77,17 @@ Examples:
   # Use a configuration file
   flutlock --config config/flutlock_config.json
   
+  # Use a global configuration file
+  flutlock --config global
+  
   # Build an Android App Bundle instead of APK
   flutlock --build-type aab
   
   # Skip the build step (just set up signing)
   flutlock --skip-build
+  
+  # Only update the build.gradle file
+  flutlock --only-update-gradle
   
   # Non-interactive mode for CI/CD
   flutlock --non-interactive --keystore-path android/app/keystore.jks
@@ -94,6 +105,14 @@ Environment Variables:
 Configuration File (JSON):
   See config/flutlock_config.json for an example
   Supports variable substitution: ${VAR_NAME:-default_value}
+  
+Global Configuration:
+  A global flutlock_config.json can be placed in any of these locations:
+  - Current working directory
+  - User's home directory (~/ or ~/.flutlock/)
+  - ~/.config/flutlock/ (Linux)
+  - %APPDATA%/flutlock/ (Windows)
+  - ~/Library/Application Support/flutlock/ (macOS)
         """,
     )
 
@@ -112,7 +131,7 @@ Configuration File (JSON):
     )
     basic_group.add_argument(
         "--config",
-        help="Path to JSON configuration file",
+        help="Path to JSON configuration file. Use '--config global' or '--config true' to automatically find and use a global flutlock_config.json file.",
     )
 
     # Build options
@@ -151,6 +170,11 @@ Configuration File (JSON):
         dest="update_gradle",
         action="store_false",
         help="Skip updating build.gradle file",
+    )
+    build_group.add_argument(
+        "--only-update-gradle",
+        action="store_true",
+        help="Only update the app-level build.gradle file with signing configuration without generating keystore or performing other operations",
     )
 
     # Keystore options
@@ -319,8 +343,25 @@ def main():
         config = None
         if args.config:
             try:
+                config_path = args.config
+
+                # If --config is provided without a path, search for global config
+                if config_path == "global" or config_path.lower() == "true":
+                    global_config_path = find_global_config()
+                    if global_config_path:
+                        config_path = global_config_path
+                        logger.info("Using global configuration file: %s", config_path)
+                    else:
+                        logger.error(
+                            "No global configuration file found. Please create a flutlock_config.json file."
+                        )
+                        logger.info(
+                            "Search locations include current directory, user's home directory, or system config directories."
+                        )
+                        return 1
+
                 # Load raw config data
-                raw_config = load_config_file(args.config)
+                raw_config = load_config_file(config_path)
 
                 # Process the config (variable substitution)
                 config = process_config(raw_config, project_path=args.path, env_vars=os.environ)
@@ -339,6 +380,20 @@ def main():
                 logger.error("Unexpected error processing configuration: %s", e)
                 if args.verbose:
                     logger.debug("Traceback: %s", traceback.format_exc())
+                return 1
+
+        # If only updating Gradle, skip other operations
+        if args.only_update_gradle:
+            try:
+                # Pass the custom signing configuration name to the gradle updater
+                success = update_app_build_gradle(
+                    args.path, config=config, signing_config_name=args.signing_config_name
+                )
+                if success:
+                    logger.info("build.gradle successfully updated with signing configuration")
+                return 0
+            except GradleError as e:
+                logger.error("Failed to update build.gradle: %s", e)
                 return 1
 
         # Check for non-interactive mode
@@ -364,12 +419,13 @@ def main():
                     )
                     return 1
 
-        # Check for Flutter and other dependencies
-        logger.debug("Checking dependencies...")
+        # Check dependencies
         try:
-            check_dependencies()
+            logger.debug("Checking dependencies...")
+            if not args.skip_build:
+                check_dependencies()
         except DependencyError as e:
-            logger.error("Dependency check failed: %s", e)
+            logger.error("Dependency error: %s", e)
             return 1
 
         # Set up the Flutter project path
