@@ -1,0 +1,21 @@
+name: flutlock_example
+description: Examples demonstrating FlutLock usage
+version: 1.0.0
+
+environment:
+  sdk: ">=2.17.0 <4.0.0"
+
+dependencies:
+  # FlutLock package (local path dependency for development)
+  flutlock:
+    path: ../
+
+  # Optional: For more advanced examples
+  path: ^1.8.3
+
+dev_dependencies:
+  test: ^1.24.0
+  lints: ^2.1.0
+
+# This example package is not meant to be published
+publish_to: none
