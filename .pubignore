@@ -1,0 +1,107 @@
+# Files and directories to exclude from the published package
+
+# Development and build artifacts
+*.exe
+*.app
+*.dmg
+*.deb
+*.rpm
+*.msi
+flutlock.exe
+build/
+.dart_tool/
+.packages
+
+# IDE and editor files
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# Test coverage and reports
+coverage/
+.nyc_output/
+lcov.info
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Documentation build artifacts
+docs/performance_results.json
+docs/IMPLEMENTATION_REPORT.md
+docs/POC_VALIDATION_RESULTS.md
+
+# Test projects and examples that are too large
+test_*/
+example_projects/
+sample_projects/
+
+# CI/CD configuration files
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+azure-pipelines.yml
+
+# Local development files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Package manager files
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Large binary files
+*.bin
+*.dat
+*.db
+*.sqlite
+*.sqlite3
+
+# Development scripts
+scripts/
+tools/dev/
+dev/
+
+# Performance test results
+performance_*.json
+benchmark_*.json

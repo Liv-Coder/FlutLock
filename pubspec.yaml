@@ -1,0 +1,32 @@
+name: flutlock
+description: A high-performance command-line tool to automate Android app signing for Flutter applications with 8 architecture patterns, keystore management, and CI/CD support.
+version: 1.0.0
+homepage: https://github.com/Liv-Coder/FlutLock
+repository: https://github.com/Liv-Coder/FlutLock
+issue_tracker: https://github.com/Liv-Coder/FlutLock/issues
+documentation: https://github.com/Liv-Coder/FlutLock#readme
+
+topics:
+  - flutter
+  - android
+  - signing
+  - automation
+  - cli
+
+environment:
+  sdk: ">=2.17.0 <4.0.0"
+
+dependencies:
+  args: ^2.4.2
+  path: ^1.8.3
+  json_schema: ^5.1.1
+  logging: ^1.2.0
+  yaml: ^3.1.2
+  meta: ^1.9.1
+
+dev_dependencies:
+  test: ^1.24.0
+  lints: ^2.1.0
+
+executables:
+  flutlock:

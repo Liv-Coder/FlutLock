@@ -1,0 +1,129 @@
+name: FlutLock Cross-Platform Tests
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  FLUTTER_VERSION: "3.19.3"
+  JAVA_VERSION: "11"
+
+jobs:
+  flutter-test:
+    name: Flutter Test (${{ matrix.os }} / Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install -r requirements-dev.txt
+          pip install pytest pytest-cov
+
+      - name: Verify Flutter installation
+        run: |
+          flutter doctor -v
+
+      - name: Create test Flutter project
+        run: |
+          mkdir -p test_projects
+          cd test_projects
+          flutter create test_app
+          cd ..
+
+      # Platform-specific setup steps
+      - name: Setup Android SDK (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          echo "Installing Android SDK tools..."
+          sudo apt-get update
+          sudo apt-get install -y android-sdk
+          echo "ANDROID_SDK_ROOT=/usr/lib/android-sdk" >> $GITHUB_ENV
+
+      - name: Setup Android SDK (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "Using Flutter's bundled Android SDK"
+          echo "ANDROID_SDK_ROOT=$FLUTTER_HOME/bin/cache/artifacts/engine/android-sdk" >> $GITHUB_ENV
+
+      # Windows setup tends to be pre-configured through Flutter installation
+
+      - name: Run unit tests
+        run: |
+          pytest --cov=src/flutter_signer tests/
+
+      - name: Run integration test (Basic functionality)
+        env:
+          KEYSTORE_PASSWORD: "test_password"
+          KEY_PASSWORD: "test_password"
+        run: |
+          python -m examples.config_file_example --path=test_projects/test_app --skip-build
+
+      - name: Run integration test (Custom signing config)
+        env:
+          KEYSTORE_PASSWORD: "test_password"
+          KEY_PASSWORD: "test_password"
+        run: |
+          python -m examples.custom_signing_config_example --path=test_projects/test_app --signing-config-name=testing --skip-build
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: false
+
+  # Build on successful tests
+  build:
+    needs: flutter-test
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+      - name: Create distribution
+        run: |
+          python -m build
+      - name: Check distribution
+        run: |
+          twine check dist/*
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
